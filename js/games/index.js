@@ -1,0 +1,20 @@
+import { makeMenu, board } from './menu.js';
+import kuis from './kuis.js';
+import tabu from './tabu.js';
+import frekuensi from './frekuensi.js';
+import kibul from './kibul.js';
+import receh from './receh.js';
+import siapa from './siapa.js';
+import undercover from './undercover.js';
+import gelombang from './gelombang.js';
+import sipaling from './sipaling.js';
+import katahost from './katahost.js';
+import gso from './gso.js';
+import kartu from './kartu.js';
+import hp6 from './hp6.js';
+import buku from './buku.js';
+import life from './life.js';
+
+export const GAMES = {};
+[kuis, tabu, frekuensi, kibul, receh, siapa, undercover, gelombang, sipaling, katahost, gso, kartu, hp6, buku, life, board].forEach((g) => { GAMES[g.id] = g; });
+GAMES.menu = makeMenu(GAMES);

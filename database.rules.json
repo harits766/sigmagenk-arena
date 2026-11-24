@@ -1,0 +1,15 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$code": {
+        ".read": true,
+        ".write": true,
+        ".validate": "$code.length <= 6",
+        "players": { "$pid": { "name": { ".validate": "newData.isString() && newData.val().length <= 20" } } },
+        "fx": { "$k": { ".validate": "newData.hasChildren(['e','ts'])" } }
+      }
+    }
+  }
+}
