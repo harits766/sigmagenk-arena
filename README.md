@@ -79,9 +79,6 @@ Vanilla JS tanpa build step · Firebase Realtime Database · Netlify Functions �
 
 ---
 
-<div align="center">
-
-Dibikin buat sirkel **Sigmagenk**, semester 7 ✨<br>
 oleh [@harits766](https://github.com/harits766) bareng Claude
 
 </div>
