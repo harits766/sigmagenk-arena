@@ -74,7 +74,7 @@ export function renderKeep(el, html) {
 
 export const avatarOf = (p) => (p ? `<span class="av">${esc(p.av || '🙂')}</span>` : '');
 export const nameOf = (p) => (p ? esc(p.name) : '?');
-export const chip = (p, extra = '') => (p ? `<span class="chip t${p.team || ''}">${avatarOf(p)}${nameOf(p)}${extra}</span>` : '');
+export const chip = (p, extra = '') => (p && !p.none ? `<span class="chip t${p.team || ''}">${avatarOf(p)}${nameOf(p)}${extra}</span>` : '');
 let TEAM_NAMES = { A: 'Kubu Hijau', B: 'Kubu Emas' };
 export const setTeamNames = (n) => { TEAM_NAMES = { A: (n && n.A) || 'Kubu Hijau', B: (n && n.B) || 'Kubu Emas' }; };
 export const teamName = (t) => TEAM_NAMES[t] || '-';

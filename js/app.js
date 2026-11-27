@@ -39,7 +39,8 @@ function ctx() {
     mine: meId ? (S.inputs || {})[meId] : undefined,
     isHost: S.isHost, H, send, now: db.now, room, once, sendTo, db, redraw: () => { S.lastPsig = ''; renderMain(); },
     byTeam: (t) => active.filter((p) => p.team === t),
-    pl: (id) => (id ? { id, ...(players[id] || { name: '?', av: '❔' }) } : null),
+    // Never null, so screens can't crash on a missing/left player; chip() hides the 'none' placeholder.
+    pl: (id) => (id && players[id] ? { id, ...players[id] } : { id: id || null, name: id ? '?' : 'Host', av: id ? '❔' : '💻', none: !id }),
   };
 }
 
