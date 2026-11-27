@@ -3,6 +3,7 @@ import { sfx, vibe, confetti, floatEmoji, toast, unlockAudio, toggleMute, isMute
 import { esc, arr, rid, pick, renderKeep, startTimerLoop, chip, teamName, shuffle, setTeamNames, setPausedAt } from './ui.js';
 import { GAMES } from './games/index.js';
 import { AVATARS, GM_LINES } from './data.js';
+import { usePack, EVENT_CODE } from './pack.js';
 
 const qs = new URLSearchParams(location.search);
 const MOCK = qs.has('mock');
@@ -178,7 +179,9 @@ function renderHostCreate() {
     <p class="tag">Mode Host • buka ini di laptop</p>
     <div class="card">
       <p>Host pegang kendali game. Peserta join dari HP pakai kode room.</p>
-      <button class="btn primary xl" data-act="createRoom">✨ Bikin Room Baru</button>
+      <button class="btn gold xl" data-act="eventRoom">🌙 Room Acara (${EVENT_CODE})</button>
+      <p class="muted">Room acara pakai paket soal khusus yang belum pernah keluar. Cuma bisa dibikin sekali, dari 1 laptop.</p>
+      <button class="btn primary xl" data-act="createRoom">✨ Bikin Room Biasa</button>
       <hr>
       <label>Atau lanjutkan room lama</label>
       <input id="oldcode" class="big-input caps" maxlength="5" placeholder="KODE">
@@ -194,11 +197,25 @@ async function createRoom() {
   for (let i = 0; i < 10; i++) {
     code = (pick(CODE_WORDS) + Math.floor(Math.random() * 10)).slice(0, 5);
     if (code.length < 5) code = code + Math.floor(Math.random() * 10);
-    if (!(await db.get(`rooms/${code}/meta`))) break;
+    if (code !== EVENT_CODE && !(await db.get(`rooms/${code}/meta`))) break;
   }
+  return makeRoom(code, '');
+}
+
+// The event room: fixed code, event content pack, owned by the first laptop that creates it.
+async function eventRoom() {
+  const code = EVENT_CODE;
+  const tok = LS.get('sg_host_' + code);
+  const meta = await db.get(`rooms/${code}/meta`);
+  if (meta && tok && meta.host === tok) { history.replaceState(null, '', `?r=${code}&host=1${MOCK ? '&mock=1' : ''}`); return enterHost(code, tok); }
+  if (meta) return toast(`Room ${code} udah dibikin dari laptop lain`, 'bad');
+  return makeRoom(code, 'event');
+}
+
+async function makeRoom(code, pack) {
   const tok = rid(10);
   await db.set(`rooms/${code}`, {
-    meta: { host: tok, createdAt: db.now(), venue: 'indoor', say: { text: pick(GM_LINES.welcome), ts: db.now() } },
+    meta: { host: tok, createdAt: db.now(), venue: 'indoor', pack: pack || null, say: { text: pick(GM_LINES.welcome), ts: db.now() } },
     stage: { g: 'menu', k: 'menu_0', at: db.now() },
     teams: { A: 0, B: 0 },
   });
@@ -211,6 +228,7 @@ async function enterHost(code, tok) {
   const meta = await db.get(`rooms/${code}/meta`);
   if (!meta || meta.host !== tok) { toast('Room ga ketemu / bukan punya lu', 'bad'); return renderHostCreate(); }
   S.code = code; S.isHost = true; S.hostToken = tok;
+  usePack(meta.pack);
   H.mem = (await db.get(room('hostdata'))) || {};
   subscribe();
 }
@@ -254,6 +272,7 @@ function subscribe() {
     const prev = S.meta?.say?.ts;
     const was = JSON.stringify([S.meta.pause, S.meta.teamNames, S.meta.timers]);
     S.meta = v || {};
+    usePack(S.meta.pack);
     setTeamNames(S.meta.teamNames);
     setPausedAt(S.meta.pause && S.meta.pause.at);
     if (S.meta.say && S.meta.say.ts !== prev) showSay();
@@ -462,6 +481,7 @@ async function onClick(e) {
     pickav: () => { S.pickAv = arg; document.querySelectorAll('.avbtn').forEach((b) => b.classList.toggle('sel', b.dataset.arg === arg)); },
     join: joinRoom,
     createRoom,
+    eventRoom,
     reclaim: () => { const c = document.getElementById('oldcode').value.trim().toUpperCase(); const tok = LS.get('sg_host_' + c); if (!tok) return toast('Room itu bukan dibikin dari laptop ini', 'bad'); enterHost(c, tok); },
     mute: () => { toggleMute(); renderTop(); },
     react: () => {

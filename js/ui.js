@@ -11,8 +11,10 @@ export const norm = (s) => String(s ?? '').toLowerCase().normalize('NFD').replac
   .replace(/[^a-z0-9 ]/g, ' ').replace(/\b(yang|si|sang|the)\b/g, ' ').replace(/\s+/g, ' ').trim();
 
 // Pick n items from a bank, avoiding ones used before in this room (kept in localStorage on the host).
+let PACK = '';
+export const setPackKey = (k) => { PACK = k || ''; };
 export function fresh(bankId, bank, n = 1) {
-  const key = 'sg_used_' + bankId;
+  const key = 'sg_used_' + (PACK ? PACK + '_' : '') + bankId;
   let used = [];
   try { used = JSON.parse(localStorage.getItem(key)) || []; } catch {}
   let idx = bank.map((_, i) => i).filter((i) => !used.includes(i));

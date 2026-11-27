@@ -12,7 +12,7 @@ Mau bikin Sigmagenk Arena versi lu sendiri? Semuanya gratis: Firebase (plan Spar
 
 1. Fork repo ini.
 2. Netlify → **Add new site → Import from GitHub** → pilih fork lu. Build command kosongin, publish directory `.`.
-3. **Site configuration → Environment variables** → tambah `GEMINI_API_KEY` (dari Google AI Studio). Opsional: `GEMINI_MODEL` (default `gemini-2.5-flash`).
+3. **Site configuration → Environment variables** → tambah `OPENAI_API_KEY` (dari platform.openai.com) dan/atau `GEMINI_API_KEY` (dari Google AI Studio). Kalau dua-duanya ada, OpenAI dipakai duluan dan Gemini jadi cadangan. Opsional: `OPENAI_MODEL` (default `gpt-4o-mini`), `GEMINI_MODEL` (default `gemini-2.5-flash`).
 4. Deploy. Tiap push ke GitHub otomatis deploy ulang.
 
 > Deploy drag-and-drop juga bisa, tapi fitur AI (Netlify Function) ga ikut jalan. Game lainnya tetep normal.
