@@ -1,10 +1,11 @@
 // Content packs. The event room (EVENT_CODE) uses js/data_event.js; every other room uses js/data.js.
 // Banks are swapped in place, so every game module that imported them sees the active pack.
 import * as D from './data.js';
-import * as E from './data_event.js';
 import { setPackKey } from './ui.js';
 
 export const EVENT_CODE = 'SABTU';
+// The event-room button only shows on ?host=1&k=<EVENT_KEY>.
+export const EVENT_KEY = 'a5suxh27';
 
 const LISTS = ['QUIZ', 'TABU', 'HERD', 'KIBUL', 'RECEH', 'SIAPA_PROMPTS', 'UNDERCOVER', 'SPECTRUM', 'SIPALING', 'DILEMMAS', 'BOOK_GENERAL', 'BOOK_DADAKAN', 'BOOK_CROSSFIRE'];
 const orig = {
@@ -14,12 +15,15 @@ const orig = {
 };
 const fill = (arr, src) => arr.splice(0, arr.length, ...src);
 
+// The event pack is only downloaded inside the event room, so it never shows up in other rooms' network traffic.
 let current = '';
-export function usePack(name) {
+let E = null;
+export async function usePack(name) {
   name = name === 'event' ? 'event' : '';
-  if (name === current) return;
+  if (name === current) return false;
   current = name;
   const ev = name === 'event';
+  if (ev && !E) E = await import('./data_event.js');
   LISTS.forEach((k) => fill(D[k], ev && E[k] ? E[k] : orig.lists[k]));
   [1, 2].forEach((l) => fill(D.LIFE[l].q, ev ? E.LIFE[l] : orig.life[l]));
   D.CARDS.forEach((c) => {
@@ -28,4 +32,5 @@ export function usePack(name) {
     if (c.prompt) fill(c.prompt, ev && E.CARD_PROMPT[c.id] ? E.CARD_PROMPT[c.id] : o.prompt);
   });
   setPackKey(name);
+  return true;
 }

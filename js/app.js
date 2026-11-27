@@ -3,7 +3,7 @@ import { sfx, vibe, confetti, floatEmoji, toast, unlockAudio, toggleMute, isMute
 import { esc, arr, rid, pick, renderKeep, startTimerLoop, chip, teamName, shuffle, setTeamNames, setPausedAt } from './ui.js';
 import { GAMES } from './games/index.js';
 import { AVATARS, GM_LINES } from './data.js';
-import { usePack, EVENT_CODE } from './pack.js';
+import { usePack, EVENT_CODE, EVENT_KEY } from './pack.js';
 
 const qs = new URLSearchParams(location.search);
 const MOCK = qs.has('mock');
@@ -179,9 +179,9 @@ function renderHostCreate() {
     <p class="tag">Mode Host • buka ini di laptop</p>
     <div class="card">
       <p>Host pegang kendali game. Peserta join dari HP pakai kode room.</p>
-      <button class="btn gold xl" data-act="eventRoom">🌙 Room Acara (${EVENT_CODE})</button>
-      <p class="muted">Room acara pakai paket soal khusus yang belum pernah keluar. Cuma bisa dibikin sekali, dari 1 laptop.</p>
-      <button class="btn primary xl" data-act="createRoom">✨ Bikin Room Biasa</button>
+      ${qs.get('k') === EVENT_KEY ? `<button class="btn gold xl" data-act="eventRoom">🌙 Room Acara (${EVENT_CODE})</button>
+      <p class="muted">Paket soal khusus acara. Cuma bisa dibikin sekali, dari laptop ini.</p>` : ''}
+      <button class="btn primary xl" data-act="createRoom">✨ Bikin Room Baru</button>
       <hr>
       <label>Atau lanjutkan room lama</label>
       <input id="oldcode" class="big-input caps" maxlength="5" placeholder="KODE">
@@ -204,6 +204,7 @@ async function createRoom() {
 
 // The event room: fixed code, event content pack, owned by the first laptop that creates it.
 async function eventRoom() {
+  if (qs.get('k') !== EVENT_KEY) return;
   const code = EVENT_CODE;
   const tok = LS.get('sg_host_' + code);
   const meta = await db.get(`rooms/${code}/meta`);
@@ -228,7 +229,7 @@ async function enterHost(code, tok) {
   const meta = await db.get(`rooms/${code}/meta`);
   if (!meta || meta.host !== tok) { toast('Room ga ketemu / bukan punya lu', 'bad'); return renderHostCreate(); }
   S.code = code; S.isHost = true; S.hostToken = tok;
-  usePack(meta.pack);
+  await usePack(meta.pack);
   H.mem = (await db.get(room('hostdata'))) || {};
   subscribe();
 }
@@ -272,7 +273,7 @@ function subscribe() {
     const prev = S.meta?.say?.ts;
     const was = JSON.stringify([S.meta.pause, S.meta.teamNames, S.meta.timers]);
     S.meta = v || {};
-    usePack(S.meta.pack);
+    usePack(S.meta.pack).then((sw) => { if (sw) { S.lastPsig = ''; renderMain(); } });
     setTeamNames(S.meta.teamNames);
     setPausedAt(S.meta.pause && S.meta.pause.at);
     if (S.meta.say && S.meta.say.ts !== prev) showSay();
