@@ -1,13 +1,14 @@
-import { esc, chip, timer, intro, wait, bar, btn, changed, sfx, splash, vibe, confetti } from './common.js';
+import { esc, chip, timer, intro, wait, bar, btn, changed, sfx, splash, vibe, confetti, dur } from './common.js';
 import { TABU } from '../data.js';
 import { shuffle } from '../ui.js';
 import { teamName } from '../ui.js';
 
-const DUR = 60000;
+const DUR = (C) => dur(C, 'tabu', 'turn', 60);
 const card = (st) => TABU[st.deck[st.ci % st.deck.length]];
 
 const g = {
   id: 'tabu', name: 'Tabu Kilat', emoji: '🚫', group: 'battle',
+  timers: [{ k: 'turn', label: 'Waktu per giliran', def: 60 }],
   blurb: 'Jelasin kata tanpa nyebut kata terlarang. Kubu lawan pegang tombol BUZZ!',
   steps: ['1 orang dari kubu yang main jadi penjelas, kata rahasia muncul di HP-nya.', 'Kubunya teriak nebak. Bener = tap ✅, susah = ⏭️ skip.', 'Kubu lawan liat kata terlarangnya. Kalau penjelas keceplosan, langsung pencet 🚨 BUZZ!', '60 detik per giliran, gantian kubu.'],
   say: 'Tabu Kilat! Yang jelasin hati-hati mulutnya, kubu lawan udah siap mencet BUZZ 🚨',
@@ -18,13 +19,13 @@ const g = {
   },
   host(C) {
     const st = C.stage;
-    if (st.phase === 'intro') return intro(g) + bar(btn('nextTurn', '▶️ Giliran pertama: Kubu Hijau', 'primary xl'));
+    if (st.phase === 'intro') return intro(g) + bar(btn('nextTurn', `▶️ Giliran pertama: ${teamName('A')}`, 'primary xl'));
     const ex = C.pl(st.explainer);
     const head = `<div class="card center"><p class="teamtag t${st.team}">Giliran ${teamName(st.team)}</p><h2>${ex.av} ${esc(ex.name)} jelasin</h2>`;
     if (st.phase === 'ready') return head + `<p class="muted">Nunggu ${esc(ex.name)} pencet MULAI di HP-nya...</p></div>` + bar(btn('forceGo', '▶️ Mulai dari sini'), btn('reroll', '🔄 Ganti penjelas'));
     if (st.phase === 'turn') {
       const c = card(st);
-      return head + timer(st.endsAt, DUR) + `<div class="secret peek"><small>Kata (hover buat intip)</small><div class="word blur">${esc(c.w)}</div></div>
+      return head + timer(st.endsAt, DUR(C)) + `<div class="secret peek"><small>Kata (hover buat intip)</small><div class="word blur">${esc(c.w)}</div></div>
         <div class="bignum">✅ ${st.got || 0} <small style="font-size:1.2rem">🚨 ${st.buzz || 0} ⏭️ ${st.skip || 0}</small></div></div>`;
     }
     if (st.phase === 'turnEnd') {
@@ -55,10 +56,10 @@ const g = {
     if (st.phase === 'turn') {
       const c = card(st);
       const score = `<div class="center"><b style="font-size:1.6rem">✅ ${st.got || 0}</b> &nbsp; 🚨 ${st.buzz || 0}</div>`;
-      if (mine) return timer(st.endsAt, DUR) + `<div class="secret"><small>Jelasin kata ini:</small><div class="word">${esc(c.w)}</div><small>JANGAN sebut:</small><div class="ban">${c.ban.map((b) => `<span>${esc(b)}</span>`).join('')}</div></div>
+      if (mine) return timer(st.endsAt, DUR(C)) + `<div class="secret"><small>Jelasin kata ini:</small><div class="word">${esc(c.w)}</div><small>JANGAN sebut:</small><div class="ban">${c.ban.map((b) => `<span>${esc(b)}</span>`).join('')}</div></div>
         ${score}<div class="choices two"><button class="btn primary bigbtn" data-act="ok" data-arg="${st.ci}">✅ BENER</button><button class="btn bigbtn" data-act="skip" data-arg="${st.ci}">⏭️ SKIP</button></div>`;
-      if (myTeam) return timer(st.endsAt, DUR) + `<div class="card center"><div class="bigemoji">🗣️</div><h2>TEBAK!</h2><p>${ex.av} ${esc(ex.name)} lagi jelasin. Teriak jawabannya!</p></div>${score}`;
-      return timer(st.endsAt, DUR) + `<div class="secret"><small>${esc(ex.name)} lagi jelasin:</small><div class="word">${esc(c.w)}</div><small>Kalau dia nyebut salah satu ini, BUZZ!</small><div class="ban">${c.ban.map((b) => `<span>${esc(b)}</span>`).join('')}</div></div>
+      if (myTeam) return timer(st.endsAt, DUR(C)) + `<div class="card center"><div class="bigemoji">🗣️</div><h2>TEBAK!</h2><p>${ex.av} ${esc(ex.name)} lagi jelasin. Teriak jawabannya!</p></div>${score}`;
+      return timer(st.endsAt, DUR(C)) + `<div class="secret"><small>${esc(ex.name)} lagi jelasin:</small><div class="word">${esc(c.w)}</div><small>Kalau dia nyebut salah satu ini, BUZZ!</small><div class="ban">${c.ban.map((b) => `<span>${esc(b)}</span>`).join('')}</div></div>
         ${score}<button class="btn danger bigbtn" data-act="buzz" data-arg="${st.ci}">🚨 BUZZ!</button>`;
     }
     if (st.phase === 'turnEnd') return `<div class="card center"><p class="teamtag t${st.team}">${teamName(st.team)}</p><div class="bignum">+${st.pts}</div>${logHtml(st)}</div>`;
@@ -108,7 +109,7 @@ function go(C) {
   return C.db.tx(C.room('stage'), (st) => {
     if (!st || st.phase !== 'ready') return st;
     st.phase = 'turn';
-    st.endsAt = C.now() + DUR;
+    st.endsAt = C.now() + DUR(C);
     return st;
   });
 }

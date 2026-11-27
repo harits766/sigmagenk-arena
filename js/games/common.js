@@ -33,3 +33,10 @@ export function endCard(C, title = 'Game Selesai!', gains) {
     ${list.length ? `<ol class="board">${list.map(([id, v], i) => `<li style="--i:${i}"><span class="rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span>${chip(C.pl(id))}<b>+${v}</b></li>`).join('')}</ol>` : ''}
   </div>`;
 }
+
+// Host-adjustable durations: each game lists `timers: [{ k, label, def }]` (seconds);
+// the host edits them before the game starts and they live in meta/timers/<gameId>/<k>.
+export function dur(C, gameId, k, def) {
+  const v = C.meta && C.meta.timers && C.meta.timers[gameId] && C.meta.timers[gameId][k];
+  return (v > 0 ? v : def) * 1000;
+}

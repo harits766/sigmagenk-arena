@@ -26,13 +26,13 @@ export function fresh(bankId, bank, n = 1) {
 let lastBeep = -1;
 export function startTimerLoop(isLoud) {
   setInterval(() => {
-    const now = db.now();
+    const now = pausedAt || db.now();
     document.querySelectorAll('[data-ends]').forEach((el) => {
       const ends = +el.dataset.ends;
       const total = +el.dataset.total || 1;
       const left = Math.max(0, ends - now);
       if (el.classList.contains('bar')) {
-        el.style.setProperty('--p', (left / total).toFixed(3));
+        el.style.setProperty('--p', Math.min(1, left / total).toFixed(3));
         el.classList.toggle('low', left < 5000);
       } else {
         const s = Math.ceil(left / 1000);
@@ -75,4 +75,8 @@ export function renderKeep(el, html) {
 export const avatarOf = (p) => (p ? `<span class="av">${esc(p.av || '🙂')}</span>` : '');
 export const nameOf = (p) => (p ? esc(p.name) : '?');
 export const chip = (p, extra = '') => (p ? `<span class="chip t${p.team || ''}">${avatarOf(p)}${nameOf(p)}${extra}</span>` : '');
-export const teamName = (t) => (t === 'A' ? 'Kubu Hijau' : t === 'B' ? 'Kubu Emas' : '-');
+let TEAM_NAMES = { A: 'Kubu Hijau', B: 'Kubu Emas' };
+export const setTeamNames = (n) => { TEAM_NAMES = { A: (n && n.A) || 'Kubu Hijau', B: (n && n.B) || 'Kubu Emas' }; };
+export const teamName = (t) => TEAM_NAMES[t] || '-';
+let pausedAt = null;
+export const setPausedAt = (v) => { pausedAt = v || null; };

@@ -121,7 +121,7 @@ export const HERD = [
   'Merek mi instan favorit',
   'Mata kuliah paling bikin pusing (umum)',
   'Kegiatan Ahad pagi paling ideal',
-  'Satu kata buat ngegambarin semester 7',
+  'Satu kata buat ngegambarin tahun ini',
   'Benda yang selalu ada di tas',
   'Hal yang paling dikangenin dari rumah',
 ];
@@ -156,10 +156,10 @@ export const RECEH = [
   'Judul skripsi yang dijamin langsung ACC:',
   'Chat ke dosen pembimbing yang pasti langsung dibales:',
   'Hal yang JANGAN diucapin pas sidang skripsi:',
-  'Nama grup WA sirkel ini 10 tahun lagi:',
+  'Nama grup WA kita 10 tahun lagi:',
   'Bio Instagram ustadz kekinian:',
   'Fitur baru yang harusnya ada di aplikasi ojol:',
-  'Isi doa mahasiswa semester 7 jam 2 pagi:',
+  'Isi doa deadliner jam 2 pagi:',
   'Kalau kosan bisa ngomong, kalimat pertamanya:',
   'Menu takjil paling aneh yang pernah ada:',
   'Pesan ibu kos di grup yang bikin semua panik:',
@@ -181,7 +181,7 @@ export const RECEH = [
 
 // ---------------- 🕵️ Siapa Nih? (contoh pertanyaan) ----------------
 export const SIAPA_PROMPTS = [
-  'Tulis 1 fakta tentang lu yang belum pernah diceritain ke sirkel ini',
+  'Tulis 1 fakta tentang lu yang belum pernah diceritain ke kita',
   'Pengalaman paling memalukan pas maba',
   'Cita-cita paling random waktu kecil',
   'Hal paling nekat yang pernah lu lakuin',
@@ -226,10 +226,10 @@ export const SIPALING = [
   'Si paling cocok jadi ketua RT?',
   'Si paling banyak foto di galeri HP?',
   'Si paling receh ketawanya?',
-  'Si paling dewasa di sirkel ini?',
+  'Si paling dewasa di sini?',
   'Si paling sering ngajak makan tapi ga pernah jadi?',
   'Si paling tahan begadang?',
-  'Si paling bakal kangen sirkel ini pas udah lulus?',
+  'Si paling bakal kangen kumpul-kumpul gini?',
 ];
 
 // ---------------- 🐘 Gajah-Orang-Semut ----------------
@@ -274,7 +274,7 @@ export const DILEMMAS = [
 // ---------------- 📚 Bedah Buku ----------------
 export const BOOK_Q = {
   self: { name: '🚀 Self-Development & Produktivitas', q: [
-    'Dari semua teori di buku ini, konsep mana yang paling tabrakan sama kebiasaan kita sebagai mahasiswa semester 7?',
+    'Dari semua teori di buku ini, konsep mana yang paling tabrakan sama kebiasaan kita sehari-hari?',
     'Kalau prinsip buku ini diterapkan tanpa nilai Islam, apa potensi jebakan atau toxic-nya?',
     'Bagian mana yang menurut lu klise atau susah banget dipraktikkan di realitas Indonesia?',
     'Satu kebiasaan kecil dari buku ini yang udah beneran lu coba, gimana hasilnya?',
@@ -291,14 +291,21 @@ export const BOOK_Q = {
     'Keputusan paling nekat atau paling manusiawi apa yang diambil tokoh utama, dan lu bakal ambil langkah yang sama?',
     'Konflik batin tokohnya yang ternyata mirip banget sama dilema anak muda sekarang?',
     'Kalau ending-nya lu tulis ulang dari sudut pandang tawakal dan ikhtiar, jadinya gimana?',
-    'Karakter siapa yang paling mirip sama salah satu temen di sirkel ini, dan kenapa?',
+    'Karakter siapa yang paling mirip sama salah satu temen di sini, dan kenapa?',
     'Adegan mana yang paling pengen lu ubah, dan kenapa?',
   ] },
 };
+export const BOOK_GENERAL = [
+  'Kalau buku/bacaan ini dirangkum jadi 1 kalimat, isinya apa?',
+  'Ide mana di buku ini yang paling tabrakan sama kebiasaan kita sehari-hari?',
+  'Bagian mana yang menurut lu klise, lebay, atau susah dipraktikkan di kehidupan nyata?',
+  'Kalau dilihat dari kacamata nilai Islam, bagian mana yang sejalan dan mana yang perlu dikritisi?',
+  'Satu hal dari buku ini yang mau lu praktikin minggu ini, dan gimana caranya?',
+];
 export const BOOK_DADAKAN = [
   { t: 'Atomic Habits (James Clear) × Istiqamah', sum: 'Perubahan kecil 1% tiap hari selaras sama amal yang paling dicintai Allah: kontinu meski sedikit (adwamuha wa in qalla).', q: 'Kenapa mahasiswa sering gagal jaga rutinitas ibadah atau skripsi pas ngandelin motivasi besar, bukan benerin sistem lingkungannya?' },
   { t: 'The Psychology of Money (Morgan Housel) × Qana\'ah & Berkah', sum: 'Beda "kaya" (keliatan) sama "makmur" (cukup dan tenang), dan konsep merasa cukup.', q: 'Pas temen seangkatan mulai pamer magang, gaji, pencapaian, gimana nentuin titik "cukup" versi diri sendiri?' },
-  { t: 'Sirah Nabawiyah (Fase Makkah)', sum: 'Ketangguhan mental generasi awal Islam ngadepin ketidakpastian dan tekanan sosial sebelum fase Madinah.', q: 'Pelajaran manajemen stres dan solidaritas sirkel apa dari fase Makkah yang paling relevan buat kita yang mau lulus?' },
+  { t: 'Sirah Nabawiyah (Fase Makkah)', sum: 'Ketangguhan mental generasi awal Islam ngadepin ketidakpastian dan tekanan sosial sebelum fase Madinah.', q: 'Pelajaran manajemen stres dan solidaritas pertemanan apa dari fase Makkah yang paling relevan buat kita sekarang?' },
 ];
 export const BOOK_CROSSFIRE = [
   'Apa kelemahan terbesar dari argumen penulis buku ini?',
@@ -313,7 +320,7 @@ export const BOOK_CROSSFIRE = [
 export const LIFE = {
   1: { name: 'Level 1 • Warm-Up', q: [
     'Kalau kondisi mental, skripsi, dan iman lu minggu ini dirangkum jadi satu judul film atau satu cuaca, apa dan kenapa?',
-    'Siapa orang di sirkel ini yang kesan pertamanya paling beda jauh sama sifat aslinya sekarang?',
+    'Siapa orang di sini yang kesan pertamanya paling beda jauh sama sifat aslinya sekarang?',
     'Dua kebenaran satu kebohongan tentang bulan ini. Yang lain tebak mana yang bohong!',
     'Satu hal random yang bikin lu senyum minggu ini?',
   ] },
@@ -321,7 +328,7 @@ export const LIFE = {
     'Apa satu hal tentang diri lu yang sering disalahpahami orang pas baru kenal?',
     'Apa satu "zona nyaman" yang pengen banget lu dobrak tahun ini?',
     'Apa satu nasehat orang tua yang dulu lu anggap remeh tapi sekarang terbukti bener?',
-    'Di semester 7 ini, hal apa yang paling sering bikin lu overthinking pas mau tidur?',
+    'Akhir-akhir ini, hal apa yang paling sering bikin lu overthinking pas mau tidur?',
     'Kalau bisa ngulang satu keputusan selama kuliah, apa yang mau lu ubah dan kenapa?',
     'Apa pencapaian kecil tahun ini yang jarang orang tau tapi lu syukuri banget?',
     'Kebiasaan buruk apa yang lagi lu usahain buat ditinggalin sebelum wisuda?',
@@ -331,23 +338,4 @@ export const LIFE = {
     'Ekspektasi orang lain tentang lu yang diem-diem agak berat buat dipikul?',
     'Satu doa spesifik yang paling sering lu langitkan akhir-akhir ini?',
   ] },
-};
-export const LIFE_TOPICS = { akademik: '🎓 Akademik / Skripsi / Karir', keluarga: '🏠 Keluarga / Ekspektasi / Relasi', ibadah: '🤲 Ibadah / Spiritual / Quarter-Life' };
-export const LIFE_ANGLES = { gali: '🔍 Gali Akar Masalah', iman: '🤲 Perspektif Iman & Tawakal', action: '🛠️ Action Plan 30 Hari' };
-export const LIFE_FOLLOW = {
-  akademik: {
-    gali: 'Dari semua hambatan di proses itu, mana yang murni faktor eksternal dan mana yang sebenernya lahir dari rasa takut atau perfeksionisme lu sendiri?',
-    iman: 'Kalau skenario terburuknya terjadi, misal lulus agak mundur dari target, gimana lu memaknai ketetapan Allah di situ?',
-    action: 'Dalam 7 hari ke depan, satu target mikro apa yang paling realistis lu selesaiin, dan gimana cara kita ngingetin lu?',
-  },
-  keluarga: {
-    gali: 'Hal apa yang sebenernya pengen banget lu omongin ke keluarga atau orang itu tapi sampai sekarang masih lu tahan?',
-    iman: 'Di titik mana lu ngerasa bakti ke orang tua dan impian pribadi lagi diuji buat ketemu titik tengahnya?',
-    action: 'Langkah komunikasi kecil apa yang bisa lu mulai minggu ini biar beban di kepala berkurang?',
-  },
-  ibadah: {
-    gali: 'Kapan terakhir lu ngerasa hati bener-bener tenang dan deket sama Allah, dan apa yang beda di hari itu?',
-    iman: 'Menurut lu, ujian apa yang lagi Allah pakai sekarang buat naikin kelas kedewasaan lu sebelum masuk dunia kerja?',
-    action: 'Satu kebiasaan ibadah ringan apa yang mau kita jaga bareng sebagai sirkel sampai kumpul berikutnya?',
-  },
 };

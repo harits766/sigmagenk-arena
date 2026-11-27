@@ -1,11 +1,14 @@
-import { esc, chip, timer, intro, wait, bar, btn, answered, progress, whoAnswered, changed, sfx, splash, vibe, confetti, endCard } from './common.js';
+import { esc, chip, timer, intro, wait, bar, btn, answered, progress, whoAnswered, changed, sfx, splash, vibe, confetti, endCard, dur } from './common.js';
 import { RECEH } from '../data.js';
 import { fresh, shuffle } from '../ui.js';
 
-const WDUR = 60000, VDUR = 15000, PAIRS = 4;
+const PAIRS = 4;
+const WDUR = (C) => dur(C, 'receh', 'write', 60);
+const VDUR = (C) => dur(C, 'receh', 'vote', 15);
 
 const g = {
   id: 'receh', name: 'Adu Receh', emoji: '😂', group: 'battle',
+  timers: [{ k: 'write', label: 'Waktu nulis', def: 60 }, { k: 'vote', label: 'Waktu vote', def: 15 }],
   blurb: '2 orang jawab prompt yang sama, semua vote jawaban paling receh.',
   steps: ['Beberapa orang dapet prompt rahasia, dipasangin 1 lawan 1.', 'Tulis jawaban selucu mungkin (60 detik).', 'Jawaban ditampilin tanpa nama, yang lain vote yang paling lucu.', 'Tiap vote +2. Menang mutlak = bonus +5!'],
   say: 'Adu Receh! Keluarin jokes terbaik lu, tapi tetep sopan ya gengs 😂',
@@ -18,12 +21,12 @@ const g = {
     const st = C.stage;
     const mem = C.H.mem;
     if (st.phase === 'intro') return intro(g) + bar(btn('round', '▶️ Mulai ronde', 'primary xl'));
-    if (st.phase === 'write') return `<div class="card center"><div class="qmeta">Ronde ${st.round} • Lagi pada nulis</div>${timer(st.endsAt, WDUR)}${progress(C, st.writers)}${whoAnswered(C, st.writers)}</div>` + bar(btn('startVote', '⏭️ Mulai voting'));
+    if (st.phase === 'write') return `<div class="card center"><div class="qmeta">Ronde ${st.round} • Lagi pada nulis</div>${timer(st.endsAt, WDUR(C))}${progress(C, st.writers)}${whoAnswered(C, st.writers)}</div>` + bar(btn('startVote', '⏭️ Mulai voting'));
     if (st.phase === 'vote' || st.phase === 'result') {
       const res = st.phase === 'result';
       const voters = C.active.filter((p) => !st.authors.includes(p.id)).map((p) => p.id);
       return `<div class="card center"><div class="qmeta">Duel ${st.m + 1}/${st.of}</div><h2 class="qtext">${esc(st.prompt)}</h2>
-        ${res ? '' : timer(st.endsAt, VDUR)}
+        ${res ? '' : timer(st.endsAt, VDUR(C))}
         <div class="versus">${[0, 1].map((i) => `<div class="side ${res && st.win === i ? 'tA' : ''}"><div class="bigtext">${esc(st.ans[i])}</div>
           ${res ? `<p>${chip(C.pl(st.authors[i]))}</p><div class="bignum">${st.votes[i]}</div>${st.sweep === i ? '<p class="streak">💯 RECEH SEMPURNA +5</p>' : ''}` : ''}</div>`).join('')}</div>
         ${res ? '' : progress(C, voters)}</div>` +
@@ -54,13 +57,13 @@ const g = {
       const sec = C.secret || {};
       if (!sec.prompt) return wait('Yang lain lagi nulis jawaban receh...', 'Siapin jempol buat vote 👍');
       if (C.mine) return `<div class="card center"><div class="bigemoji">😏</div><p>Jawaban lu: <b>${esc(C.mine.t)}</b></p></div>`;
-      return `<div class="card"><div class="qmeta">Prompt lu (rahasia)</div><h2>${esc(sec.prompt)}</h2>${timer(st.endsAt, WDUR, false)}
+      return `<div class="card"><div class="qmeta">Prompt lu (rahasia)</div><h2>${esc(sec.prompt)}</h2>${timer(st.endsAt, WDUR(C), false)}
         <textarea id="rans" maxlength="80" placeholder="Jawaban paling receh..."></textarea><button class="btn primary xl" data-act="write">Kirim</button></div>`;
     }
     if (st.phase === 'vote') {
       if (st.authors.includes(C.me.id)) return `<div class="card center"><div class="bigemoji">🙈</div><h2>Ini duel lu!</h2><p class="muted">Pasang muka datar biar ga ketauan...</p></div>`;
       if (C.mine !== undefined) return `<div class="card center"><div class="bigemoji">🗳️</div><p>Vote masuk!</p></div>`;
-      return `<div class="card"><h2>${esc(st.prompt)}</h2>${timer(st.endsAt, VDUR, false)}<p class="muted">Mana yang paling receh?</p>
+      return `<div class="card"><h2>${esc(st.prompt)}</h2>${timer(st.endsAt, VDUR(C), false)}<p class="muted">Mana yang paling receh?</p>
         <div class="choices">${[0, 1].map((i) => `<button class="choice" data-act="vote" data-arg="${i}"><span class="bigtext" style="font-size:1.2rem">${esc(st.ans[i])}</span></button>`).join('')}</div></div>`;
     }
     if (st.phase === 'result') {
@@ -105,7 +108,7 @@ async function round(C) {
     mem.played[b] = (mem.played[b] || 0) + 1;
   }
   await C.H.secrets(secrets);
-  await C.H.setStage('receh', { phase: 'write', round: mem.round, writers: chosen, endsAt: C.now() + WDUR });
+  await C.H.setStage('receh', { phase: 'write', round: mem.round, writers: chosen, endsAt: C.now() + WDUR(C) });
 }
 
 async function startVote(C, m) {
@@ -116,7 +119,7 @@ async function startVote(C, m) {
   const flip = Math.random() < 0.5;
   const authors = flip ? [mt.b, mt.a] : [mt.a, mt.b];
   await C.H.secrets(null);
-  await C.H.setStage('receh', { phase: 'vote', m, of: mem.matches.length, prompt: mt.prompt, authors, ans: authors.map(t), endsAt: C.now() + VDUR });
+  await C.H.setStage('receh', { phase: 'vote', m, of: mem.matches.length, prompt: mt.prompt, authors, ans: authors.map(t), endsAt: C.now() + VDUR(C) });
 }
 
 async function result(C) {

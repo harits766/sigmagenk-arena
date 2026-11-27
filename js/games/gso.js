@@ -1,11 +1,12 @@
-import { esc, chip, timer, intro, wait, bar, btn, answered, progress, changed, sfx, splash, vibe, confetti } from './common.js';
+import { esc, chip, timer, intro, wait, bar, btn, answered, progress, changed, sfx, splash, vibe, confetti, dur } from './common.js';
 import { GSO, GSO_BEATS } from '../data.js';
 import { teamName, pick } from '../ui.js';
 
-const PDUR = 15000;
+const PDUR = (C) => dur(C, 'gso', 'pick', 15);
 
 const g = {
   id: 'gso', name: 'Gajah-Orang-Semut', emoji: '🐘', group: 'heboh', field: true,
+  timers: [{ k: 'pick', label: 'Waktu milih jurus', def: 15 }],
   blurb: 'Suit massal 2 kubu. Pilih jurus di HP, terus peragain serentak!',
   steps: ['Tiap kubu kumpul membelakangi lawan, pilih jurus di HP (15 detik). Suara terbanyak jadi jurus kubu.', '🐘 Gajah > 🧍 Orang > 🐜 Semut > 🐘 Gajah.', 'Pas hasil keluar, semua lompat madep lawan & peragain jurusnya!', 'Kubu yang kalah dikejar sampai garis belakang. Yang ketangkep pindah kubu (host atur di menu 👥).'],
   say: 'Gajah-Orang-Semut! Kompakan sama kubu lu, jangan ada yang beda sendiri 🐘🧍🐜',
@@ -15,14 +16,14 @@ const g = {
     if (st.phase === 'intro') return intro(g) + bar(btn('pick', '▶️ Ronde 1', 'primary xl'));
     if (st.phase === 'pick') {
       const a = answered(C, C.byTeam('A').map((p) => p.id)), b = answered(C, C.byTeam('B').map((p) => p.id));
-      return `<div class="card center"><div class="qmeta">Ronde ${st.round}</div><h2>Kubu lagi milih jurus...</h2>${timer(st.endsAt, PDUR)}
+      return `<div class="card center"><div class="qmeta">Ronde ${st.round}</div><h2>Kubu lagi milih jurus...</h2>${timer(st.endsAt, PDUR(C))}
         <div class="versus"><div class="side tA"><h3>${teamName('A')}</h3><div class="bignum">${a.n}/${a.total}</div></div><div class="side tB"><h3>${teamName('B')}</h3><div class="bignum">${b.n}/${b.total}</div></div></div></div>` + bar(btn('reveal', '⏭️ Buka sekarang'));
     }
     if (st.phase === 'reveal') return revealHtml(C) + bar(btn('pick', '▶️ Ronde berikutnya', 'primary xl'), btn('toMenu', '🏁 Udahan'));
     return '';
   },
   hostActs: {
-    pick: (C) => { C.H.mem.round = (C.H.mem.round || 0) + 1; return C.H.setStage('gso', { phase: 'pick', round: C.H.mem.round, endsAt: C.now() + PDUR }); },
+    pick: (C) => { C.H.mem.round = (C.H.mem.round || 0) + 1; return C.H.setStage('gso', { phase: 'pick', round: C.H.mem.round, endsAt: C.now() + PDUR(C) }); },
     reveal: (C) => reveal(C),
   },
   tick(C) {
@@ -35,7 +36,7 @@ const g = {
     if (st.phase === 'pick') {
       const mine = C.mine;
       const mates = C.byTeam(C.me.team).map((p) => C.inputs[p.id]).filter(Boolean);
-      return `<div class="card center"><p class="teamtag t${C.me.team}">${teamName(C.me.team)} • Ronde ${st.round}</p><h2>Pilih jurus kubu!</h2>${timer(st.endsAt, PDUR, false)}
+      return `<div class="card center"><p class="teamtag t${C.me.team}">${teamName(C.me.team)} • Ronde ${st.round}</p><h2>Pilih jurus kubu!</h2>${timer(st.endsAt, PDUR(C), false)}
         <div class="choices">${Object.entries(GSO).map(([k, v]) => `<button class="choice ${mine === k ? 'sel' : ''}" data-act="pose" data-arg="${k}"><span style="font-size:2.4rem">${v.e}</span><span><b>${v.n}</b><br><small>${v.how}</small></span><b id="cnt${k}" style="margin-left:auto">${mates.filter((m) => m === k).length || ''}</b></button>`).join('')}</div>
         <p class="muted">Angka = suara temen sekubu. Boleh ganti sebelum waktu habis.</p></div>`;
     }

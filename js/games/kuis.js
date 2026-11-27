@@ -1,12 +1,14 @@
-import { esc, chip, timer, intro, wait, bar, btn, answered, progress, changed, sfx, splash, vibe, confetti, endCard } from './common.js';
+import { esc, chip, timer, intro, wait, bar, btn, answered, progress, changed, sfx, splash, vibe, confetti, endCard, dur } from './common.js';
 import { QUIZ } from '../data.js';
 import { fresh } from '../ui.js';
 
-const N = 8, DUR = 15000, LEAD = 1200;
+const N = 8, LEAD = 1200;
+const DUR = (C) => dur(C, 'kuis', 'q', 15);
 const SHAPES = ['▲', '◆', '●', '■'];
 
 const g = {
   id: 'kuis', name: 'Kuis Kilat', emoji: '⚡', group: 'battle',
+  timers: [{ k: 'q', label: 'Waktu jawab per soal', def: 15 }],
   blurb: 'Kuis Islami & kampus. Makin cepet jawab, makin gede poinnya.',
   steps: ['Soal muncul di HP semua orang.', 'Pilih jawaban secepat mungkin, poin turun tiap detik.', 'Bener beruntun = bonus streak 🔥. Poin lu masuk ke kubu lu.'],
   say: 'Kuis Kilat! Jempol siap? Yang paling cepet & bener, poinnya paling gede ⚡',
@@ -18,7 +20,7 @@ const g = {
     const st = C.stage;
     if (st.phase === 'intro') return intro(g) + bar(btn('next', '▶️ Mulai Soal 1', 'primary xl'));
     if (st.phase === 'q') {
-      return `<div class="card qcard"><div class="qmeta">Soal ${st.i + 1}/${st.n}</div><h2 class="qtext">${esc(st.q.q)}</h2>${timer(st.endsAt, DUR)}
+      return `<div class="card qcard"><div class="qmeta">Soal ${st.i + 1}/${st.n}</div><h2 class="qtext">${esc(st.q.q)}</h2>${timer(st.endsAt, DUR(C))}
         <div class="opts">${st.q.o.map((o, i) => `<div class="opt o${i}"><span>${SHAPES[i]}</span>${esc(o)}</div>`).join('')}</div>${progress(C)}</div>
         ${bar(btn('reveal', '⏭️ Buka jawaban sekarang'))}`;
     }
@@ -38,7 +40,7 @@ const g = {
       const i = C.stage.phase === 'intro' ? 0 : C.stage.i + 1;
       const q = C.H.mem.qs[i];
       const at = C.now() + LEAD;
-      await C.H.setStage('kuis', { phase: 'q', i, n: N, q: { q: q.q, o: q.o }, startAt: at, endsAt: at + DUR });
+      await C.H.setStage('kuis', { phase: 'q', i, n: N, q: { q: q.q, o: q.o }, startAt: at, endsAt: at + DUR(C) });
     },
     reveal: (C) => reveal(C),
     finish: (C) => C.H.patch({ phase: 'end', gains: C.H.mem.gains }),
@@ -53,7 +55,7 @@ const g = {
     if (st.phase === 'intro') return intro(g);
     if (st.phase === 'q') {
       if (C.mine) return `<div class="card center locked"><div class="bigshape o${C.mine.a}">${SHAPES[C.mine.a]}</div><p>Jawaban terkunci!</p><small class="muted">Nunggu yang lain...</small></div>`;
-      return `<div class="qmeta">Soal ${st.i + 1}/${st.n}</div><p class="qsmall">${esc(st.q.q)}</p>${timer(st.endsAt, DUR, false)}
+      return `<div class="qmeta">Soal ${st.i + 1}/${st.n}</div><p class="qsmall">${esc(st.q.q)}</p>${timer(st.endsAt, DUR(C), false)}
         <div class="bigopts">${st.q.o.map((o, i) => `<button class="opt o${i}" data-act="ans" data-arg="${i}"><span>${SHAPES[i]}</span>${esc(o)}</button>`).join('')}</div>`;
     }
     if (st.phase === 'reveal') {
@@ -97,7 +99,7 @@ async function reveal(C) {
     dist[inp.a]++;
     picks[p.id] = inp.a;
     if (inp.a === q.a) {
-      const frac = Math.max(0, Math.min(1, (st.endsAt - inp.t) / DUR));
+      const frac = Math.max(0, Math.min(1, (st.endsAt - inp.t) / DUR(C)));
       mem.streak[p.id] = (mem.streak[p.id] || 0) + 1;
       streaks[p.id] = mem.streak[p.id];
       gains[p.id] = 10 + Math.round(10 * frac) + Math.min(mem.streak[p.id] - 1, 3) * 2;

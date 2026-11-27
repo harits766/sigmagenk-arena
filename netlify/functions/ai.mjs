@@ -1,15 +1,12 @@
-// Netlify Function: proxies the two AI tasks to Gemini so the API key never reaches the browser.
+// Netlify Function: proxies the AI question generator to Gemini so the API key never reaches the browser.
 // Env vars (Netlify > Site configuration > Environment variables): GEMINI_API_KEY (required), GEMINI_MODEL (optional).
-const SYSTEM = `Kamu AI Game Master & fasilitator acara kumpul sirkel mahasiswa semester 7 bernuansa Islami ("Sigmagenk").
+const SYSTEM = `Kamu AI Game Master & fasilitator acara kumpul anak muda bernuansa Islami ("Sigmagenk Arena").
 Bahasa Indonesia santai, akrab, hangat (lu-gue), cerdas, tidak menggurui, tetap beradab Islami.
 Balas HANYA JSON sesuai skema: {"message": "1 kalimat pengantar santai", "items": ["..."]}.`;
 
 const TASKS = {
   book: (i) => `Pembedah mau bedah buku/bacaan "${i.title}" (genre: ${i.genre || 'bebas'}).
-Buat 5 pertanyaan kritis Hot Seat yang menguji pemahaman dan mengaitkan isi buku dengan kehidupan mahasiswa semester 7 dan nilai Islam. Tiap pertanyaan maksimal 30 kata. Kalau kamu tidak yakin isi bukunya, buat pertanyaan yang tetap relevan tanpa mengarang fakta spesifik tentang buku itu.`,
-  followup: (i) => `Seorang anggota sirkel baru selesai cerita menjawab pertanyaan: "${i.question}".
-Ringkasan ceritanya: "${i.summary}". Topik: ${i.topic}. Arah pendalaman yang dipilih teman-teman: ${i.angle}.
-Buat 3 pertanyaan lanjutan yang hangat, spesifik ke ceritanya, tidak menghakimi, maksimal 30 kata per pertanyaan. Urutkan dari yang paling pas.`,
+Buat 5 pertanyaan kritis Hot Seat yang menguji pemahaman dan mengaitkan isi buku dengan kehidupan anak muda sekarang dan nilai Islam. Tiap pertanyaan maksimal 30 kata. Kalau kamu tidak yakin isi bukunya, buat pertanyaan yang tetap relevan tanpa mengarang fakta spesifik tentang buku itu.`,
 };
 
 const clip = (s, n) => String(s ?? '').slice(0, n);

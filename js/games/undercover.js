@@ -1,12 +1,13 @@
-import { esc, chip, timer, intro, wait, bar, btn, answered, progress, changed, sfx, splash, vibe, confetti } from './common.js';
+import { esc, chip, timer, intro, wait, bar, btn, answered, progress, changed, sfx, splash, vibe, confetti, dur } from './common.js';
 import { UNDERCOVER } from '../data.js';
 import { fresh, shuffle, norm } from '../ui.js';
 
-const VDUR = 60000;
+const VDUR = (C) => dur(C, 'undercover', 'vote', 60);
 const ROLE = { w: { n: 'Warga', e: '🧑‍🌾' }, u: { n: 'Undercover', e: '🕵️' }, x: { n: 'Mr. White', e: '👻' } };
 
 const g = {
   id: 'undercover', name: 'Undercover', emoji: '🕵️', group: 'heboh',
+  timers: [{ k: 'vote', label: 'Waktu voting', def: 60 }],
   blurb: 'Semua dapet kata rahasia. Ada penyusup yang katanya beda. Cari dia!',
   steps: ['Mayoritas dapet kata Warga, 1-3 orang dapet kata mirip (Undercover), 1 orang layarnya kosong (Mr. White).', 'Gantian sebut 1 kata petunjuk soal kata lu. Jangan terlalu jelas!', 'Diskusi heboh, terus vote di HP siapa yang dicurigai.', 'Mr. White yang ketangkep boleh nebak kata Warga buat menang.'],
   say: 'Undercover! Di antara kita ada penyusup... siapa ya? 👀',
@@ -24,7 +25,7 @@ const g = {
     const roster = `<div class="chips">${alive.map((id) => chip(C.pl(id), ` <small>${ROLE[roles[id]]?.e || ''}</small>`)).join('')}</div>`;
     if (st.phase === 'clue') return `<div class="card"><div class="qmeta">Ronde ${st.round} • Sebut petunjuk</div><h2>Urutan ngomong:</h2><ol class="steps">${st.order.map((id) => `<li>${esc(C.pl(id).av)} ${esc(C.pl(id).name)}</li>`).join('')}</ol>
       <p class="muted peek">Kata (hover buat intip): Warga <b class="blur">${esc(C.H.mem.words?.w)}</b> • Undercover <b class="blur">${esc(C.H.mem.words?.u)}</b></p></div>` + bar(btn('vote', '🗳️ Mulai voting', 'primary xl'));
-    if (st.phase === 'vote') return `<div class="card center"><div class="qmeta">Ronde ${st.round} • Voting</div>${timer(st.endsAt, VDUR)}${progress(C, alive)}${tally(C)}</div>` + bar(btn('count', '⏭️ Hitung suara'));
+    if (st.phase === 'vote') return `<div class="card center"><div class="qmeta">Ronde ${st.round} • Voting</div>${timer(st.endsAt, VDUR(C))}${progress(C, alive)}${tally(C)}</div>` + bar(btn('count', '⏭️ Hitung suara'));
     if (st.phase === 'out') return outHtml(C) + bar(st.winner ? btn('finish', '🏁 Lihat hasil akhir', 'primary xl') : btn('nextRound', '▶️ Ronde berikutnya', 'primary xl'));
     if (st.phase === 'white') return `<div class="card center"><h2>👻 Mr. White ketangkep!</h2><p>${esc(C.pl(st.white).name)} boleh nebak kata Warga.</p>
       ${C.inputs[st.white] ? `<div class="quote">Tebakan: "${esc(C.inputs[st.white])}"</div><p>Kata Warga: <b>${esc(C.H.mem.words.w)}</b></p>` : '<p class="muted">Nunggu tebakan...</p>'}</div>` +
@@ -35,7 +36,7 @@ const g = {
   hostActs: {
     deal: (C) => deal(C),
     again: (C) => deal(C),
-    vote: (C) => C.H.setStage('undercover', { ...base(C), phase: 'vote', endsAt: C.now() + VDUR }),
+    vote: (C) => C.H.setStage('undercover', { ...base(C), phase: 'vote', endsAt: C.now() + VDUR(C) }),
     count: (C) => count(C),
     nextRound: (C) => C.H.setStage('undercover', { ...base(C), phase: 'clue', round: C.stage.round + 1, order: shuffle(C.stage.alive) }),
     whiteRight: (C) => finish(C, 'x'),
@@ -65,7 +66,7 @@ const g = {
     if (st.phase === 'vote') {
       if (!alive) return wait('Yang masih hidup lagi voting...');
       if (C.mine) return wordCard + `<div class="card center"><p>Lu vote: ${chip(C.pl(C.mine))}</p><small class="muted">Nunggu yang lain...</small></div>`;
-      return wordCard + `<div class="card"><h2>Siapa penyusupnya?</h2>${timer(st.endsAt, VDUR, false)}<div class="choices two">${st.alive.filter((id) => id !== C.me.id).map((id) => { const p = C.pl(id); return `<button class="choice" data-act="vote" data-arg="${id}"><span class="av">${esc(p.av)}</span>${esc(p.name)}</button>`; }).join('')}</div></div>`;
+      return wordCard + `<div class="card"><h2>Siapa penyusupnya?</h2>${timer(st.endsAt, VDUR(C), false)}<div class="choices two">${st.alive.filter((id) => id !== C.me.id).map((id) => { const p = C.pl(id); return `<button class="choice" data-act="vote" data-arg="${id}"><span class="av">${esc(p.av)}</span>${esc(p.name)}</button>`; }).join('')}</div></div>`;
     }
     if (st.phase === 'out') return outHtml(C);
     if (st.phase === 'white') {

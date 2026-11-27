@@ -1,12 +1,15 @@
-import { esc, chip, timer, intro, wait, bar, btn, answered, progress, changed, sfx, splash, vibe, confetti } from './common.js';
+import { esc, chip, timer, intro, wait, bar, btn, answered, progress, changed, sfx, splash, vibe, confetti, dur } from './common.js';
 import { SPECTRUM } from '../data.js';
 import { fresh, teamName } from '../ui.js';
 
-const GDUR = 45000, SDUR = 15000, CDUR = 60000;
+const CDUR = (C) => dur(C, 'gelombang', 'clue', 60);
+const GDUR = (C) => dur(C, 'gelombang', 'guess', 45);
+const SDUR = (C) => dur(C, 'gelombang', 'steal', 15);
 const score = (d) => (d <= 4 ? 4 : d <= 10 ? 3 : d <= 17 ? 2 : 0);
 
 const g = {
   id: 'gelombang', name: 'Gelombang Pikiran', emoji: '🎚️', group: 'heboh',
+  timers: [{ k: 'clue', label: 'Waktu mikir clue', def: 60 }, { k: 'guess', label: 'Waktu geser slider', def: 45 }, { k: 'steal', label: 'Waktu curi poin', def: 15 }],
   blurb: 'Satu orang kasih clue, kubunya geser slider nebak posisi rahasia di spektrum.',
   steps: ['Muncul 2 kutub, misal "Hal Sepele ↔ Bikin Overthinking".', 'Si Cenayang liat posisi target rahasia (0-100) dan kasih 1 clue.', 'Kubunya diskusi & geser slider di HP, rata-ratanya jadi tebakan.', 'Kubu lawan nebak: target lebih kiri atau kanan? Bener = bonus.'],
   say: 'Gelombang Pikiran! Satu frekuensi gak sama kubu lu? 🎚️',
@@ -17,14 +20,14 @@ const g = {
   },
   host(C) {
     const st = C.stage;
-    if (st.phase === 'intro') return intro(g) + bar(btn('turn', '▶️ Mulai: Kubu Hijau', 'primary xl'));
+    if (st.phase === 'intro') return intro(g) + bar(btn('turn', `▶️ Mulai: ${teamName('A')}`, 'primary xl'));
     const head = `<div class="poles"><span>⬅️ ${esc(st.sp[0])}</span><span>${esc(st.sp[1])} ➡️</span></div>`;
     const psy = C.pl(st.psychic);
-    if (st.phase === 'clue') return `<div class="card center"><p class="teamtag t${st.team}">${teamName(st.team)}</p><h2>🔮 ${esc(psy.av)} ${esc(psy.name)} lagi mikir clue</h2>${head}${timer(st.endsAt, CDUR)}</div>`;
+    if (st.phase === 'clue') return `<div class="card center"><p class="teamtag t${st.team}">${teamName(st.team)}</p><h2>🔮 ${esc(psy.av)} ${esc(psy.name)} lagi mikir clue</h2>${head}${timer(st.endsAt, CDUR(C))}</div>`;
     if (st.phase === 'guess') return `<div class="card center"><p class="teamtag t${st.team}">${teamName(st.team)} nebak</p><div class="quote">🔮 "${esc(st.clue)}"</div>${head}
-      <div class="dial">${needle(avg(C, st), 'team')}</div><p>Rata-rata kubu: <b id="avgv">${avg(C, st) ?? '-'}</b></p>${timer(st.endsAt, GDUR)}${progress(C, st.guessers)}</div>` + bar(btn('lock', '🔒 Kunci tebakan', 'primary xl'));
+      <div class="dial">${needle(avg(C, st), 'team')}</div><p>Rata-rata kubu: <b id="avgv">${avg(C, st) ?? '-'}</b></p>${timer(st.endsAt, GDUR(C))}${progress(C, st.guessers)}</div>` + bar(btn('lock', '🔒 Kunci tebakan', 'primary xl'));
     if (st.phase === 'steal') return `<div class="card center"><div class="quote">🔮 "${esc(st.clue)}"</div>${head}<div class="dial">${needle(st.guess, 'team')}</div>
-      <p>${teamName(st.team === 'A' ? 'B' : 'A')} nebak: target lebih kiri atau kanan?</p>${timer(st.endsAt, SDUR)}${progress(C, st.stealers)}</div>` + bar(btn('reveal', '🎉 Buka target', 'primary xl'));
+      <p>${teamName(st.team === 'A' ? 'B' : 'A')} nebak: target lebih kiri atau kanan?</p>${timer(st.endsAt, SDUR(C))}${progress(C, st.stealers)}</div>` + bar(btn('reveal', '🎉 Buka target', 'primary xl'));
     if (st.phase === 'reveal') return revealHtml(C) + bar(btn('turn', `▶️ Giliran ${teamName(st.team === 'A' ? 'B' : 'A')}`, 'primary xl'), btn('toMenu', '🏁 Udahan'));
     return '';
   },
@@ -37,7 +40,7 @@ const g = {
     const st = C.stage;
     if (st.phase === 'guess' && C.now() > st.endsAt + 300) C.once('lock', () => lock(C));
     if (st.phase === 'steal' && (C.now() > st.endsAt + 300 || answered(C, st.stealers).all)) C.once('rev', () => reveal(C));
-    if (st.phase === 'clue' && C.inputs[st.psychic]) C.once('clue', () => C.H.setStage('gelombang', { ...st, phase: 'guess', clue: C.inputs[st.psychic], endsAt: C.now() + GDUR }));
+    if (st.phase === 'clue' && C.inputs[st.psychic]) C.once('clue', () => C.H.setStage('gelombang', { ...st, phase: 'guess', clue: C.inputs[st.psychic], endsAt: C.now() + GDUR(C) }));
   },
   player(C) {
     const st = C.stage;
@@ -48,14 +51,14 @@ const g = {
       if (C.me.id === st.psychic) {
         const t = (C.secret || {}).target;
         return `<div class="card"><h2>🔮 Lu Si Cenayang!</h2>${head}<div class="dial"><div class="zone" style="left:${t - 4}%;width:8%" data-l="🎯"></div></div>
-          <p>Target: <b>${t}</b>. Kasih 1 clue yang posisinya kira-kira di situ.</p>${timer(st.endsAt, CDUR, false)}<input id="wclue" class="big-input" maxlength="60" placeholder="Clue lu..."><button class="btn primary xl" data-act="clue">Kirim Clue</button></div>`;
+          <p>Target: <b>${t}</b>. Kasih 1 clue yang posisinya kira-kira di situ.</p>${timer(st.endsAt, CDUR(C), false)}<input id="wclue" class="big-input" maxlength="60" placeholder="Clue lu..."><button class="btn primary xl" data-act="clue">Kirim Clue</button></div>`;
       }
       return wait(`${C.pl(st.psychic).name} lagi mikirin clue...`, myTeam ? 'Lu bagian nebak, siap-siap!' : 'Kubu lawan yang nebak, lu bisa curi poin nanti.');
     }
     if (st.phase === 'guess') {
       if (myTeam && st.guessers.includes(C.me.id)) {
         return `<div class="card"><div class="quote">🔮 "${esc(st.clue)}"</div>${head}<input type="range" id="wslide" min="0" max="100" value="${C.mine ? C.mine.v : 50}" data-act-input="slide">
-          <p class="center">Posisi lu: <b id="myv">${C.mine ? C.mine.v : 50}</b> • Rata-rata kubu: <b id="avgv">${avg(C, st) ?? '-'}</b></p>${timer(st.endsAt, GDUR, false)}<p class="muted center">Diskusi bareng kubu! Yang dipake rata-rata semua slider.</p></div>`;
+          <p class="center">Posisi lu: <b id="myv">${C.mine ? C.mine.v : 50}</b> • Rata-rata kubu: <b id="avgv">${avg(C, st) ?? '-'}</b></p>${timer(st.endsAt, GDUR(C), false)}<p class="muted center">Diskusi bareng kubu! Yang dipake rata-rata semua slider.</p></div>`;
       }
       return `<div class="card center"><div class="quote">🔮 "${esc(st.clue)}"</div>${head}<p class="muted">${myTeam ? 'Lu Si Cenayang, diem aja ya 🤐' : 'Kubu lawan lagi nebak... dengerin diskusinya buat curi poin!'}</p></div>`;
     }
@@ -63,7 +66,7 @@ const g = {
       const dial = `<div class="dial">${needle(st.guess, 'team')}</div>`;
       if (!st.stealers.includes(C.me.id)) return `<div class="card center"><div class="quote">🔮 "${esc(st.clue)}"</div>${head}${dial}<p class="muted">Kubu lawan lagi nebak arah...</p></div>`;
       if (C.mine) return `<div class="card center">${head}${dial}<p>Tebakan lu: <b>${C.mine === 'L' ? '⬅️ Lebih kiri' : 'Lebih kanan ➡️'}</b></p></div>`;
-      return `<div class="card center"><div class="quote">🔮 "${esc(st.clue)}"</div>${head}${dial}${timer(st.endsAt, SDUR, false)}<p>Target aslinya lebih kiri atau kanan dari jarum?</p>
+      return `<div class="card center"><div class="quote">🔮 "${esc(st.clue)}"</div>${head}${dial}${timer(st.endsAt, SDUR(C), false)}<p>Target aslinya lebih kiri atau kanan dari jarum?</p>
         <div class="choices two"><button class="btn bigbtn" data-act="steal" data-arg="L">⬅️ Kiri</button><button class="btn bigbtn" data-act="steal" data-arg="R">Kanan ➡️</button></div></div>`;
     }
     if (st.phase === 'reveal') return revealHtml(C);
@@ -113,14 +116,14 @@ async function turn(C) {
   const [sp] = fresh('spectrum', SPECTRUM, 1);
   mem.target = target;
   await C.H.secrets({ [psychic]: { target } });
-  await C.H.setStage('gelombang', { phase: 'clue', team, psychic, sp, guessers: members.filter((p) => p.id !== psychic).map((p) => p.id), endsAt: C.now() + CDUR });
+  await C.H.setStage('gelombang', { phase: 'clue', team, psychic, sp, guessers: members.filter((p) => p.id !== psychic).map((p) => p.id), endsAt: C.now() + CDUR(C) });
 }
 
 async function lock(C) {
   const st = C.stage;
   const guess = avg(C, st) ?? 50;
   const stealers = C.byTeam(st.team === 'A' ? 'B' : 'A').map((p) => p.id);
-  await C.H.setStage('gelombang', { ...st, phase: 'steal', guess, stealers, endsAt: C.now() + SDUR });
+  await C.H.setStage('gelombang', { ...st, phase: 'steal', guess, stealers, endsAt: C.now() + SDUR(C) });
 }
 
 async function reveal(C) {

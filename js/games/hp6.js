@@ -1,4 +1,4 @@
-import { esc, chip, timer, intro, wait, bar, btn, answered, progress, whoAnswered, changed, sfx, splash, vibe, confetti } from './common.js';
+import { esc, chip, timer, intro, wait, bar, btn, answered, progress, whoAnswered, changed, sfx, splash, vibe, confetti, dur } from './common.js';
 import { DILEMMAS, LIFE } from '../data.js';
 import { pick, shuffle, sample } from '../ui.js';
 
@@ -11,10 +11,13 @@ const R = [
   { t: 'Sandi 1–6', e: '🔐', d: 'Tombol angka diacak. Tap 1 sampai 6 berurutan secepat kilat! Salah tap +1 detik.', dur: 20000 },
 ];
 const NONE = 9e6;
+const TUNABLE = { 0: 'r1', 4: 'r5', 5: 'r6' };
+const rd = (C, i) => (TUNABLE[i] ? dur(C, 'hp6', TUNABLE[i], R[i].dur / 1000) : R[i].dur);
 let local = {}; // per-device minigame state, keyed by stage.k
 
 const g = {
   id: 'hp6', name: 'Games HP 6 Ronde', emoji: '🎮', group: 'hp6',
+  timers: [{ k: 'r1', label: 'Ronde 1 Kumpul Kode', def: 60 }, { k: 'r5', label: 'Ronde 5 Minoritas', def: 15 }, { k: 'r6', label: 'Ronde 6 Sandi', def: 20 }],
   blurb: '6 minigame eliminasi di HP. Yang kalah tiap ronde kena pertanyaan deep talk.',
   steps: R.map((r, i) => `Ronde ${i + 1}: ${r.e} ${r.t}`),
   say: 'Games HP 6 Ronde! Yang kalah bukan dihukum, tapi dapet giliran cerita 🌙',
@@ -25,14 +28,14 @@ const g = {
   },
   host(C) {
     const st = C.stage;
-    if (st.phase === 'intro') return intro(g, '<p class="muted">Tiap ronde ada yang tereliminasi dan dapet pertanyaan deep talk buat dijawab di depan sirkel.</p>') + bar(btn('round', '▶️ Ronde 1', 'primary xl'));
+    if (st.phase === 'intro') return intro(g, '<p class="muted">Tiap ronde ada yang tereliminasi dan dapet pertanyaan deep talk buat dijawab di depan semua.</p>') + bar(btn('round', '▶️ Ronde 1', 'primary xl'));
     const r = R[st.r];
     if (st.phase === 'play') {
       const alive = aliveIds(C);
       let extra = '';
       if (st.r === 3) extra = `<div class="bigemoji bomb">💣</div><h2>${esc(C.pl(st.holder).name)} pegang bom!</h2>`;
       if (st.r === 4) extra = `<div class="versus"><div class="side"><b>A</b><p>${esc(st.dil[0])}</p></div><div class="side"><b>B</b><p>${esc(st.dil[1])}</p></div></div>`;
-      return `<div class="card center"><div class="qmeta">Ronde ${st.r + 1}/6</div><h2>${r.e} ${esc(r.t)}</h2><p>${esc(r.d)}</p>${st.endsAt ? timer(st.endsAt, r.dur) : ''}${extra}${progress(C, alive)}${whoAnswered(C, alive)}</div>` + bar(btn('finish', '⏭️ Akhiri ronde'));
+      return `<div class="card center"><div class="qmeta">Ronde ${st.r + 1}/6</div><h2>${r.e} ${esc(r.t)}</h2><p>${esc(r.d)}</p>${st.endsAt ? timer(st.endsAt, rd(C, st.r)) : ''}${extra}${progress(C, alive)}${whoAnswered(C, alive)}</div>` + bar(btn('finish', '⏭️ Akhiri ronde'));
     }
     if (st.phase === 'result') return resultHtml(C) + bar(st.r < 5 ? btn('round', `▶️ Ronde ${st.r + 2}`, 'primary xl') : btn('end', '🏁 Penutup', 'primary xl'));
     if (st.phase === 'end') return endHtml(C) + bar(btn('toMenu', '🏠 Menu', 'primary'));
@@ -57,7 +60,7 @@ const g = {
       const r = R[st.r];
       if (out) return `<div class="card center"><div class="bigemoji">🌙</div><h2>Lu udah out</h2><p>Pertanyaan lu:</p><div class="quote">${esc(out.q)}</div><p class="muted">Nonton & semangatin yang masih main!</p></div>`;
       if (C.mine !== undefined && st.r !== 3) return `<div class="card center"><div class="bigemoji">✅</div><h2>Selesai!</h2><p>${fmt(st.r, C.mine)}</p><small class="muted">Nunggu yang lain...</small></div>`;
-      return `<div class="qmeta">Ronde ${st.r + 1}/6 • ${r.e} ${esc(r.t)}</div><p class="muted">${esc(r.d)}</p>${st.endsAt && st.r !== 1 && st.r !== 2 ? timer(st.endsAt, r.dur, false) : ''}<div id="mg">${mgHtml(C)}</div>`;
+      return `<div class="qmeta">Ronde ${st.r + 1}/6 • ${r.e} ${esc(r.t)}</div><p class="muted">${esc(r.d)}</p>${st.endsAt && st.r !== 1 && st.r !== 2 ? timer(st.endsAt, rd(C, st.r), false) : ''}<div id="mg">${mgHtml(C)}</div>`;
     }
     if (st.phase === 'result') {
       const meOut = (st.losers || []).includes(C.me.id);
@@ -167,7 +170,7 @@ async function round(C) {
   const r = C.stage.phase === 'intro' ? 0 : C.stage.r + 1;
   const alive = aliveIds(C);
   const now = C.now();
-  const base = { phase: 'play', r, out: C.stage.out || {}, startAt: now, endsAt: R[r].dur ? now + R[r].dur : null };
+  const base = { phase: 'play', r, out: C.stage.out || {}, startAt: now, endsAt: R[r].dur ? now + rd(C, r) : null };
   if (r === 0) {
     const codes = {}, secrets = {};
     const used = new Set();

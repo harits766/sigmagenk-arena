@@ -1,30 +1,33 @@
-import { esc, chip, timer, intro, wait, bar, btn, answered, progress, whoAnswered, changed, sfx, splash, vibe, confetti } from './common.js';
-import { BOOK_Q, BOOK_DADAKAN, BOOK_CROSSFIRE } from '../data.js';
+import { esc, chip, timer, intro, wait, bar, btn, answered, progress, whoAnswered, changed, sfx, splash, vibe, confetti, dur } from './common.js';
+import { BOOK_GENERAL, BOOK_DADAKAN, BOOK_CROSSFIRE } from '../data.js';
 import { pick } from '../ui.js';
 import { toast } from '../fx.js';
 import { askAI } from '../ai.js';
 
-const MIN = 60000;
-const PH = { pitch: { n: 'Babak 1 • 5-Minute Pitch', d: 5 * MIN }, hotseat: { n: 'Babak 2 • Hot Seat', d: 10 * MIN }, crossfire: { n: 'Babak 3 • Cross-Fire Forum', d: 10 * MIN }, takeaway: { n: 'Babak 4 • One-Sentence Takeaway', d: 3 * MIN } };
+const PH = { pitch: { n: 'Babak 1 • Pitch' }, hotseat: { n: 'Babak 2 • Hot Seat' }, crossfire: { n: 'Babak 3 • Cross-Fire Forum' }, takeaway: { n: 'Babak 4 • One-Sentence Takeaway' } };
+
+const DEF = { pitch: 300, hotseat: 600, crossfire: 600, takeaway: 180 };
+const D = (C, ph) => dur(C, 'buku', ph, DEF[ph] || 300);
 
 const g = {
   id: 'buku', name: 'Bedah Buku Dadakan', emoji: '📚', group: 'deep',
   blurb: 'Hot seat bedah buku 25 menit. Ga bawa buku? AI kasih bahan dadakan.',
-  steps: ['Babak 1: Pembedah pitch 5 menit (judul, masalah utama, 1 ide paling nampol). Pake bahasa sendiri!', 'Babak 2: Hot Seat, pertanyaan kritis muncul satu-satu.', 'Babak 3: Cross-Fire, semua vote/ketik pertanyaan buat nantang pembedah.', 'Babak 4: Semua nulis 1 kalimat insight yang mau dipraktikkan pekan ini.'],
+  steps: ['Babak 1: Pembedah pitch singkat (judul, masalah utama, 1 ide paling nampol). Pake bahasa sendiri!', 'Babak 2: Hot Seat, pertanyaan kritis muncul satu-satu.', 'Babak 3: Cross-Fire, semua vote/ketik pertanyaan buat nantang pembedah.', 'Babak 4: Semua nulis 1 kalimat insight yang mau dipraktikkan pekan ini.'],
+  timers: [{ k: 'pitch', label: 'Babak 1 Pitch', def: 300 }, { k: 'hotseat', label: 'Babak 2 Hot Seat', def: 600 }, { k: 'crossfire', label: 'Babak 3 Cross-Fire', def: 600 }, { k: 'takeaway', label: 'Babak 4 Takeaway', def: 180 }],
   say: 'Bedah Buku Dadakan! Santai aja, ini bukan sidang skripsi kok 📚',
-  async start(C) { C.H.mem = {}; await C.H.setStage('buku', { phase: 'setup', cat: 'self', mode: 'own' }); },
+  async start(C) { C.H.mem = {}; await C.H.setStage('buku', { phase: 'setup', mode: 'own' }); },
   host(C) {
     const st = C.stage;
     if (st.phase === 'setup') {
       return intro(g) + `<div class="card"><label>Pembedah</label><div class="chips">${C.active.map((p) => `<button class="chip ${st.speaker === p.id ? 'tA' : ''}" data-act="speaker" data-arg="${p.id}" style="${st.speaker === p.id ? 'background:#134e3a' : ''}">${esc(p.av)} ${esc(p.name)}</button>`).join('')}</div>
         <button class="btn" data-act="randSpeaker">🎲 Acak pembedah</button>
         <label>Mode</label><div class="row">${btn('mode', '📖 Punya buku sendiri', st.mode === 'own' ? 'primary' : '', 'own')}${btn('mode', '🎲 Dadakan (AI kasih bahan)', st.mode === 'dadakan' ? 'primary' : '', 'dadakan')}</div>
-        ${st.mode === 'own' ? `<label>Genre</label><div class="row">${Object.entries(BOOK_Q).map(([k, v]) => btn('cat', v.name, st.cat === k ? 'primary' : '', k)).join('')}</div>
+        ${st.mode === 'own' ? `<label>Genre / tema (bebas)</label><input id="bgenre" placeholder="mis. sejarah, fiksi, bisnis, parenting, sains...">
           <label>Judul buku / bacaan</label><input id="btitle" placeholder="mis. Filosofi Teras - Henry Manampiring">` : `<div class="quote">${esc((st.dadakan || BOOK_DADAKAN[0]).t)}</div><button class="btn" data-act="rollDadakan">🔄 Ganti bahan</button>`}</div>` +
         bar(btn('begin', '▶️ Mulai Babak 1', 'primary xl'));
     }
     const sp = C.pl(st.speaker);
-    const head = `<div class="card center"><div class="qmeta">${PH[st.phase]?.n || ''}</div><h2>${esc(sp.av)} ${esc(sp.name)} bedah: ${esc(st.title)}</h2>${st.endsAt && PH[st.phase] ? timer(st.endsAt, PH[st.phase].d) : ''}</div>`;
+    const head = `<div class="card center"><div class="qmeta">${PH[st.phase]?.n || ''}</div><h2>${esc(sp.av)} ${esc(sp.name)} bedah: ${esc(st.title)}</h2>${st.endsAt && PH[st.phase] ? timer(st.endsAt, D(C, st.phase)) : ''}</div>`;
     if (st.phase === 'pitch') return head + (st.card ? `<div class="card"><p>${esc(st.card.sum)}</p><p class="muted">Pertanyaan pemantik: ${esc(st.card.q)}</p></div>` : `<div class="card"><ol class="steps"><li>Judul & penulisnya siapa?</li><li>Masalah utama apa yang dibahas?</li><li>1 ide paling "nampol" yang lu tangkep?</li></ol></div>`) + bar(btn('hotseat', '▶️ Babak 2: Hot Seat', 'primary xl'));
     if (st.phase === 'hotseat') return head + `<div class="card"><div class="qmeta">Pertanyaan ${st.qi + 1}/${st.qs.length}${st.ai ? ' • ✨ AI' : ''}</div><div class="quote">${esc(st.qs[st.qi])}</div></div>` +
       bar(st.qi + 1 < st.qs.length ? btn('nextQ', '▶️ Pertanyaan berikutnya', 'primary') : '', btn('aiQ', '✨ Pertanyaan AI buat buku ini'), btn('crossfire', '⏭️ Babak 3: Cross-Fire', st.qi + 1 >= st.qs.length ? 'primary xl' : ''));
@@ -37,26 +40,26 @@ const g = {
     speaker: (C, id) => C.H.patch({ speaker: id }),
     randSpeaker: (C) => C.H.patch({ speaker: pick(C.active).id }),
     mode: (C, m) => C.H.patch({ mode: m, dadakan: m === 'dadakan' ? pick(BOOK_DADAKAN) : null }),
-    cat: (C, k) => C.H.patch({ cat: k }),
     rollDadakan: (C) => C.H.patch({ dadakan: pick(BOOK_DADAKAN) }),
     begin: async (C) => {
       const st = C.stage;
       if (!st.speaker) return toast('Pilih pembedah dulu', 'bad');
       const dad = st.mode === 'dadakan' ? st.dadakan || BOOK_DADAKAN[0] : null;
       const title = dad ? dad.t : (document.getElementById('btitle')?.value.trim() || 'Buku pilihan pembedah');
-      const qs = dad ? [dad.q, ...BOOK_Q.islam.q.slice(0, 2), ...BOOK_Q.self.q.slice(3, 5)] : [...BOOK_Q[st.cat].q];
-      await C.H.setStage('buku', { phase: 'pitch', speaker: st.speaker, title, card: dad, qs, qi: 0, cat: st.cat, endsAt: C.now() + PH.pitch.d });
+      const genre = dad ? '' : (document.getElementById('bgenre')?.value.trim() || '');
+      const qs = dad ? [dad.q, ...BOOK_GENERAL.slice(0, 4)] : BOOK_GENERAL.slice(0, 5);
+      await C.H.setStage('buku', { phase: 'pitch', speaker: st.speaker, title, genre, card: dad, qs, qi: 0, endsAt: C.now() + D(C, 'pitch') });
     },
-    hotseat: (C) => C.H.setStage('buku', { ...keep(C), phase: 'hotseat', qi: 0, endsAt: C.now() + PH.hotseat.d }),
+    hotseat: (C) => C.H.setStage('buku', { ...keep(C), phase: 'hotseat', qi: 0, endsAt: C.now() + D(C, 'hotseat') }),
     nextQ: (C) => C.H.patch({ qi: C.stage.qi + 1 }),
     aiQ: async (C) => {
       toast('✨ Minta pertanyaan ke AI...');
-      const r = await askAI('book', { title: C.stage.title, genre: BOOK_Q[C.stage.cat || 'self']?.name });
+      const r = await askAI('book', { title: C.stage.title, genre: C.stage.genre || 'bebas' });
       if (!r) return toast('AI lagi ga bisa dipake, pake bank soal aja ya', 'bad');
       await C.H.patch({ qs: r.items.slice(0, 5), qi: 0, ai: true });
     },
-    crossfire: (C) => C.H.setStage('buku', { ...keep(C), phase: 'crossfire', cf: BOOK_CROSSFIRE, endsAt: C.now() + PH.crossfire.d }),
-    takeaway: (C) => C.H.setStage('buku', { ...keep(C), phase: 'takeaway', endsAt: C.now() + PH.takeaway.d }),
+    crossfire: (C) => C.H.setStage('buku', { ...keep(C), phase: 'crossfire', cf: BOOK_CROSSFIRE, endsAt: C.now() + D(C, 'crossfire') }),
+    takeaway: (C) => C.H.setStage('buku', { ...keep(C), phase: 'takeaway', endsAt: C.now() + D(C, 'takeaway') }),
     end: async (C) => {
       const wall = Object.entries(C.inputs).filter(([, v]) => v && v.t).map(([id, v]) => ({ id, t: v.t }));
       const gains = { [C.stage.speaker]: 5 };
@@ -70,7 +73,7 @@ const g = {
     if (st.phase === 'setup') return intro(g) + wait('Host lagi nyiapin pembedah & bukunya...');
     const sp = C.pl(st.speaker);
     const isSp = C.me.id === st.speaker;
-    const head = `<div class="card center"><div class="qmeta">${PH[st.phase]?.n || ''}</div><h2>${esc(sp.av)} ${esc(sp.name)}</h2><p>${esc(st.title)}</p>${st.endsAt && PH[st.phase] ? timer(st.endsAt, PH[st.phase].d, false) : ''}</div>`;
+    const head = `<div class="card center"><div class="qmeta">${PH[st.phase]?.n || ''}</div><h2>${esc(sp.av)} ${esc(sp.name)}</h2><p>${esc(st.title)}</p>${st.endsAt && PH[st.phase] ? timer(st.endsAt, D(C, st.phase), false) : ''}</div>`;
     if (st.phase === 'pitch') return head + (isSp ? `<div class="card"><h3>🎤 Lu pembedahnya!</h3>${st.card ? `<p>${esc(st.card.sum)}</p>` : ''}<ol class="steps"><li>Judul & penulisnya siapa?</li><li>Masalah utama apa yang dibahas?</li><li>1 ide paling "nampol" yang lu tangkep?</li></ol></div>` : `<div class="card center"><p>Dengerin pitch-nya. Siapin pertanyaan buat Babak 3 😏</p></div>`);
     if (st.phase === 'hotseat') return head + `<div class="card"><div class="qmeta">Hot Seat ${st.qi + 1}/${st.qs.length}</div><div class="quote">${esc(st.qs[st.qi])}</div></div>`;
     if (st.phase === 'crossfire') {
@@ -99,7 +102,7 @@ const g = {
   },
 };
 
-const keep = (C) => { const { speaker, title, card, qs, qi, cat, ai } = C.stage; return { speaker, title, card, qs, qi, cat, ai }; };
+const keep = (C) => { const { speaker, title, genre, card, qs, qi, ai } = C.stage; return { speaker, title, genre, card, qs, qi, ai }; };
 
 function crossHtml(C) {
   const st = C.stage;

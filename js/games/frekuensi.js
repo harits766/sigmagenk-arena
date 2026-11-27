@@ -1,11 +1,13 @@
-import { esc, chip, timer, intro, wait, bar, btn, answered, progress, whoAnswered, changed, sfx, splash, vibe, confetti, endCard } from './common.js';
+import { esc, chip, timer, intro, wait, bar, btn, answered, progress, whoAnswered, changed, sfx, splash, vibe, confetti, endCard, dur } from './common.js';
 import { HERD } from '../data.js';
 import { fresh, norm } from '../ui.js';
 
-const N = 5, DUR = 25000;
+const N = 5;
+const DUR = (C) => dur(C, 'frekuensi', 'q', 25);
 
 const g = {
   id: 'frekuensi', name: 'Satu Frekuensi', emoji: '🧠', group: 'battle',
+  timers: [{ k: 'q', label: 'Waktu jawab', def: 25 }],
   blurb: 'Jawab sama kayak kebanyakan orang. Beda sendiri = zonk!',
   steps: ['Pertanyaan muncul, semua ngetik 1 jawaban singkat.', 'Jawaban yang paling banyak sama = MAYORITAS, semua anggotanya dapet poin.', 'Jangan sok unik. Di game ini yang menang yang paling "umum" 😆'],
   say: 'Satu Frekuensi! Coba tebak isi kepala temen-temen lu. Jangan nyeleneh sendiri ya 🧠',
@@ -16,7 +18,7 @@ const g = {
   host(C) {
     const st = C.stage;
     if (st.phase === 'intro') return intro(g) + bar(btn('next', '▶️ Pertanyaan 1', 'primary xl'));
-    if (st.phase === 'q') return `<div class="card center"><div class="qmeta">Ronde ${st.i + 1}/${N}</div><h2 class="qtext">${esc(st.q)}</h2>${timer(st.endsAt, DUR)}${progress(C)}${whoAnswered(C)}</div>` + bar(btn('toGroup', '⏭️ Tutup jawaban'));
+    if (st.phase === 'q') return `<div class="card center"><div class="qmeta">Ronde ${st.i + 1}/${N}</div><h2 class="qtext">${esc(st.q)}</h2>${timer(st.endsAt, DUR(C))}${progress(C)}${whoAnswered(C)}</div>` + bar(btn('toGroup', '⏭️ Tutup jawaban'));
     if (st.phase === 'group') {
       const gs = C.H.mem.groups || [];
       return `<div class="card"><div class="qmeta">Ronde ${st.i + 1}/${N}</div><h2>${esc(st.q)}</h2>
@@ -29,7 +31,7 @@ const g = {
     return '';
   },
   hostActs: {
-    next: (C) => { const i = C.stage.phase === 'intro' ? 0 : C.stage.i + 1; return C.H.setStage('frekuensi', { phase: 'q', i, q: C.H.mem.qs[i], endsAt: C.now() + DUR }); },
+    next: (C) => { const i = C.stage.phase === 'intro' ? 0 : C.stage.i + 1; return C.H.setStage('frekuensi', { phase: 'q', i, q: C.H.mem.qs[i], endsAt: C.now() + DUR(C) }); },
     toGroup: (C) => toGroup(C),
     merge: (C) => {
       const gs = C.H.mem.groups;
@@ -53,7 +55,7 @@ const g = {
     if (st.phase === 'intro') return intro(g);
     if (st.phase === 'q') {
       if (C.mine) return `<div class="card center locked"><div class="bigemoji">🔒</div><p>Jawaban lu: <b>${esc(C.mine.t)}</b></p><small class="muted">Nunggu yang lain...</small></div>`;
-      return `<div class="card"><div class="qmeta">Ronde ${st.i + 1}/${N}</div><h2>${esc(st.q)}</h2>${timer(st.endsAt, DUR, false)}
+      return `<div class="card"><div class="qmeta">Ronde ${st.i + 1}/${N}</div><h2>${esc(st.q)}</h2>${timer(st.endsAt, DUR(C), false)}
         <input id="hans" maxlength="30" placeholder="Jawaban lu..." autocomplete="off" class="big-input"><button class="btn primary xl" data-act="send">Kirim</button></div>`;
     }
     if (st.phase === 'group') return wait('Host lagi ngelompokin jawaban...', 'Siap-siap ketauan siapa yang beda sendiri 😆');

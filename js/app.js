@@ -1,6 +1,6 @@
 import { db } from './db.js';
 import { sfx, vibe, confetti, floatEmoji, toast, unlockAudio, toggleMute, isMuted, splash } from './fx.js';
-import { esc, arr, rid, pick, renderKeep, startTimerLoop, chip, teamName, shuffle } from './ui.js';
+import { esc, arr, rid, pick, renderKeep, startTimerLoop, chip, teamName, shuffle, setTeamNames, setPausedAt } from './ui.js';
 import { GAMES } from './games/index.js';
 import { AVATARS, GM_LINES } from './data.js';
 
@@ -75,10 +75,27 @@ export const H = {
     S.teams = { ...S.teams, [t]: v };
     await db.set(room('teams/' + t), v);
   },
-  async splitTeams() {
+  // mode 'mix': shuffle, ikhwan & akhwat spread evenly over both kubu. mode 'split': ikhwan vs akhwat.
+  async splitTeams(mode = 'mix') {
     const ids = shuffle(Object.keys(S.players).filter((id) => S.players[id].on !== false));
     const up = {};
-    ids.forEach((id, i) => { up[`players/${id}/team`] = i % 2 ? 'B' : 'A'; });
+    if (mode === 'split') {
+      const cnt = { A: 0, B: 0 };
+      ids.forEach((id) => { const g = S.players[id].g; if (g === 'L') cnt.A++; if (g === 'P') cnt.B++; });
+      ids.forEach((id) => {
+        const g = S.players[id].g;
+        let t = g === 'L' ? 'A' : g === 'P' ? 'B' : null;
+        if (!t) { t = cnt.A <= cnt.B ? 'A' : 'B'; cnt[t]++; }
+        up[`players/${id}/team`] = t;
+      });
+      up['meta/teamMode'] = 'split';
+      up['meta/teamNames'] = { A: 'Kubu Ikhwan', B: 'Kubu Akhwat' };
+    } else {
+      const order = [...ids.filter((id) => S.players[id].g === 'L'), ...ids.filter((id) => S.players[id].g === 'P'), ...ids.filter((id) => !S.players[id].g)];
+      order.forEach((id, i) => { up[`players/${id}/team`] = i % 2 ? 'B' : 'A'; });
+      up['meta/teamMode'] = 'mix';
+      up['meta/teamNames'] = null;
+    }
     await db.update(room(), up);
   },
   menu: () => { H.say(pick(GM_LINES.menu)); return H.setStage('menu'); },
@@ -123,12 +140,14 @@ function renderJoin(code = '', err = '') {
   $app.innerHTML = `
   <div class="landing">
     <div class="logo"><span>SIGMAGENK</span><b>ARENA</b></div>
-    <p class="tag">Party game sirkel semester 7 • realtime di HP</p>
+    <p class="tag">Party game rame-rame • realtime di HP</p>
     <div class="card">
       <label>Kode Room</label>
       <input id="jcode" maxlength="5" autocomplete="off" placeholder="mis. KURMA" value="${esc(code)}" class="big-input caps">
       <label>Nama Panggilan</label>
       <input id="jname" maxlength="14" autocomplete="off" placeholder="Nama lu" value="${esc(last.name || '')}" class="big-input">
+      <label>Lu ikhwan atau akhwat?</label>
+      <div class="gpick">${genderBtns(last.g, 'pickg')}</div>
       <label>Pilih Avatar</label>
       <div class="avgrid" id="avgrid">${AVATARS.map((a) => `<button class="avbtn ${a === av ? 'sel' : ''}" data-act="pickav" data-arg="${a}">${a}</button>`).join('')}</div>
       ${err ? `<p class="err">${esc(err)}</p>` : ''}
@@ -137,6 +156,18 @@ function renderJoin(code = '', err = '') {
     <a class="hostlink" href="?host=1${MOCK ? '&mock=1' : ''}">💻 Jadi Host (laptop)</a>
   </div>`;
   S.pickAv = av;
+  S.pickG = last.g || null;
+}
+const genderBtns = (cur, act) => `<button class="gbtn ${cur === 'L' ? 'sel' : ''}" data-act="${act}" data-arg="L">🧔 Ikhwan</button><button class="gbtn ${cur === 'P' ? 'sel' : ''}" data-act="${act}" data-arg="P">🧕 Akhwat</button>`;
+
+// Which kubu a new player lands in: separate mode puts ikhwan in A and akhwat in B,
+// otherwise the kubu with fewer people of the same gender (then fewer people overall).
+function teamFor(meta, players, g) {
+  if (meta.teamMode === 'split' && g) return g === 'L' ? 'A' : 'B';
+  const list = Object.values(players).filter((p) => p.on !== false);
+  const n = (t, same) => list.filter((p) => p.team === t && (!same || p.g === g)).length;
+  if (g && n('A', true) !== n('B', true)) return n('A', true) < n('B', true) ? 'A' : 'B';
+  return n('A') <= n('B') ? 'A' : 'B';
 }
 
 function renderHostCreate() {
@@ -188,18 +219,18 @@ async function joinRoom() {
   const name = document.getElementById('jname').value.trim();
   if (!code) return renderJoin(code, 'Isi kode room dulu');
   if (!name) return renderJoin(code, 'Isi nama dulu');
+  if (!S.pickG) return renderJoin(code, 'Pilih ikhwan atau akhwat dulu');
   const meta = await db.get(`rooms/${code}/meta`);
   if (!meta) return renderJoin(code, `Room ${code} ga ada. Cek lagi kodenya.`);
   const players = (await db.get(`rooms/${code}/players`)) || {};
   const same = Object.entries(players).find(([, p]) => p.name.toLowerCase() === name.toLowerCase());
   const id = same ? same[0] : 'p' + rid(7);
-  const a = Object.values(players).filter((p) => p.team === 'A').length;
-  const b = Object.values(players).filter((p) => p.team === 'B').length;
+  const g = S.pickG;
   const me = { id, name, av: S.pickAv };
-  const rec = same ? { ...same[1], av: S.pickAv, on: true } : { name, av: S.pickAv, pts: 0, team: a <= b ? 'A' : 'B', joinedAt: db.now(), on: true };
+  const rec = same ? { ...same[1], av: S.pickAv, g, on: true } : { name, av: S.pickAv, g, pts: 0, team: teamFor(meta, players, g), joinedAt: db.now(), on: true };
   await db.set(`rooms/${code}/players/${id}`, rec);
   LS.set('sg_me_' + code, me);
-  LS.set('sg_profile', { name, av: S.pickAv });
+  LS.set('sg_profile', { name, av: S.pickAv, g });
   history.replaceState(null, '', `?r=${code}${MOCK ? '&mock=1' : ''}${NS ? '&as=' + NS : ''}`);
   enterPlayer(code, me);
 }
@@ -218,7 +249,16 @@ function subscribe() {
   S.joinedAt = db.now();
   renderShell();
   const u = S.unsubs;
-  u.push(db.on(room('meta'), (v) => { const prev = S.meta?.say?.ts; S.meta = v || {}; if (S.meta.say && S.meta.say.ts !== prev) showSay(); renderTop(); }));
+  u.push(db.on(room('meta'), (v) => {
+    const prev = S.meta?.say?.ts;
+    const was = JSON.stringify([S.meta.pause, S.meta.teamNames, S.meta.timers]);
+    S.meta = v || {};
+    setTeamNames(S.meta.teamNames);
+    setPausedAt(S.meta.pause && S.meta.pause.at);
+    if (S.meta.say && S.meta.say.ts !== prev) showSay();
+    renderTop();
+    if (was !== JSON.stringify([S.meta.pause, S.meta.teamNames, S.meta.timers])) { S.lastPsig = ''; renderMain(); }
+  }));
   u.push(db.on(room('players'), (v) => {
     S.players = v || {};
     if (!S.isHost && S.me && !S.players[S.me.id] && S.stage) { localStorage.removeItem('sg_me_' + S.code + NS); location.href = `?r=${S.code}${MOCK ? '&mock=1' : ''}`; return; }
@@ -246,6 +286,7 @@ function onStage(st) {
   }
   const g = GAMES[st.g];
   if (g && g.fx) { try { g.fx(ctx(), prev); } catch (e) { console.error(e); } }
+  if (S.isHost) renderTop();
   renderMain();
 }
 
@@ -271,6 +312,9 @@ function renderTop() {
       <div class="roomcode" data-act="showJoin">ROOM <b>${S.code}</b></div>
       ${scores}
       <div class="tbtns">
+        ${S.meta.pause ? '<button class="btn sm primary" data-act="resume">▶️ Lanjut</button>' : '<button class="btn sm" data-act="pause">⏸️</button>'}
+        ${S.stage && S.stage.endsAt && !S.meta.pause ? '<button class="btn sm" data-act="plus15">+15s</button>' : ''}
+        <button class="btn sm" data-act="timers">⏱️</button>
         <button class="btn sm" data-act="drawer">👥 ${n}</button>
         <button class="btn sm" data-act="board">🏆</button>
         <button class="btn sm" data-act="menu">🏠</button>
@@ -308,15 +352,19 @@ function doRender() {
   const g = GAMES[C.stage.g] || GAMES.menu;
   try {
     if (S.isHost) {
-      renderKeep(el, `<div class="game g-${g.id}">${g.host(C)}</div>`);
+      const tbtn = g.timers && ['intro', 'pick', 'setup'].includes(C.stage.phase) && !(g.id === 'gso' && C.stage.phase === 'pick')
+        ? `<div class="row center"><button class="btn sm" data-act="timers">⏱️ Atur timer ${esc(g.name)} sebelum mulai</button></div>` : '';
+      renderKeep(el, `<div class="game g-${g.id}">${g.host(C)}${tbtn}</div>`);
       g.hostMount && g.hostMount(el, C);
     } else {
       // Player screens re-render only when what they show actually changes (keeps sliders/typing smooth).
-      const sig = g.psig ? g.psig(C) : JSON.stringify([C.stage, C.secret, C.me && C.me.team, C.mine === undefined, C.plist.length]);
+      const needG = C.me && !C.me.g;
+      const sig = (needG ? 'G|' : '') + JSON.stringify([C.stage.endsAt, C.stage.times, C.stage.at]) + (g.psig ? g.psig(C) : JSON.stringify([C.stage, C.secret, C.me && C.me.team, C.mine === undefined, C.plist.length]));
       if (sig !== S.lastPsig || el.dataset.g !== C.stage.k) {
         S.lastPsig = sig;
         el.dataset.g = C.stage.k;
-        renderKeep(el, `<div class="game g-${g.id}">${g.player(C)}</div>`);
+        const ask = needG ? `<div class="card center warn"><p>Lu ikhwan atau akhwat? (buat bagi kubu)</p><div class="gpick">${genderBtns(null, 'setg')}</div></div>` : '';
+        renderKeep(el, `${ask}<div class="game g-${g.id}">${g.player(C)}</div>`);
         g.playerMount && g.playerMount(el, C);
       } else if (g.pupdate) g.pupdate(el, C);
     }
@@ -337,6 +385,7 @@ function saveMem() {
 function hostTick() {
   if (!S.isHost || !S.stage) return;
   saveMem();
+  if (S.meta.pause) return;
   const g = GAMES[S.stage.g];
   if (g && g.tick) { try { g.tick(ctx()); } catch (e) { console.error(e); } }
 }
@@ -353,8 +402,14 @@ export function once(tag, fn) {
 function renderOverlay() {
   const el = document.getElementById('overlay');
   if (!el) return;
-  if (!S.overlay) { el.innerHTML = ''; return; }
   const C = ctx();
+  if (S.meta.pause) {
+    el.innerHTML = `<div class="ov pauseov"><div class="ovbox center"><div class="bigemoji">⏸️</div><h2>Jeda dulu</h2>
+      <p class="muted">${S.isHost ? 'Timer semua game berhenti. Klik lanjut kalau udah siap.' : 'Host lagi nge-pause. Tunggu bentar ya.'}</p>
+      ${S.isHost ? '<button class="btn primary xl" data-act="resume">▶️ Lanjut</button>' : ''}</div></div>`;
+    return;
+  }
+  if (!S.overlay) { el.innerHTML = ''; return; }
   let body = '';
   if (S.overlay === 'join') {
     const url = location.origin + location.pathname + `?r=${S.code}${MOCK ? '&mock=1' : ''}`;
@@ -363,21 +418,32 @@ function renderOverlay() {
   } else if (S.overlay === 'board') {
     body = `<h2>🏆 Klasemen</h2>${boardHtml(C)}`;
   } else if (S.overlay === 'drawer') {
+    const gc = (t, g) => C.active.filter((p) => p.team === t && p.g === g).length;
+    const mode = S.meta.teamMode === 'split' ? 'Pisah ikhwan vs akhwat' : 'Campur';
     body = `<h2>👥 Pemain (${C.active.length} online)</h2>
-      <div class="row"><button class="btn" data-act="split">🔀 Acak Kubu</button></div>
+      <p class="muted">Mode kubu: <b>${mode}</b> • 🟢 ${esc(teamName('A'))}: 🧔${gc('A', 'L')} 🧕${gc('A', 'P')} • 🟡 ${esc(teamName('B'))}: 🧔${gc('B', 'L')} 🧕${gc('B', 'P')}</p>
+      <div class="row"><button class="btn" data-act="split" data-arg="mix">🔀 Acak campur (ikhwan & akhwat rata)</button><button class="btn" data-act="split" data-arg="split">🧔 vs 🧕 Pisah ikhwan & akhwat</button></div>
       <div class="plist">${C.plist.map((p) => `
-        <div class="prow ${p.on === false ? 'off' : ''}">${chip(p)}<small>${p.pts || 0} poin</small>
+        <div class="prow ${p.on === false ? 'off' : ''}">${chip(p)}<small>${p.g === 'L' ? '🧔' : p.g === 'P' ? '🧕' : '❔'} ${p.pts || 0} poin</small>
           <button class="btn sm" data-act="swapTeam" data-arg="${p.id}">⇄ Kubu</button>
           <button class="btn sm danger" data-act="kick" data-arg="${p.id}">✕</button></div>`).join('')}</div>`;
+  } else if (S.overlay === 'timers' || S.overlay === 'timers_all') {
+    const cur = S.overlay === 'timers' ? GAMES[C.stage.g] : null;
+    const list = cur && cur.timers ? [cur] : Object.values(GAMES).filter((g) => g.timers);
+    const tm = S.meta.timers || {};
+    body = `<h2>⏱️ Atur Timer</h2><p class="muted">Dalam detik. Berlaku buat ronde/pertanyaan berikutnya. Kosongin = default.</p>
+      ${list.map((g) => `<div class="tset"><h3>${g.emoji} ${esc(g.name)}</h3>${g.timers.map((t) => `
+        <label class="trow"><span>${esc(t.label)}</span><input type="number" min="3" max="1800" step="5" id="tm_${g.id}_${t.k}" data-timer="${g.id}/${t.k}" placeholder="${t.def}" value="${(tm[g.id] || {})[t.k] || ''}"><small>dtk</small></label>`).join('')}</div>`).join('')}
+      ${cur && cur.timers ? '<button class="btn sm" data-act="allTimers">Lihat timer semua game</button>' : ''}`;
   }
-  el.innerHTML = `<div class="ov" data-act="closeOv"><div class="ovbox" data-stop>${body}<button class="btn" data-act="closeOv">Tutup</button></div></div>`;
+  renderKeep(el, `<div class="ov" data-act="closeOv"><div class="ovbox" data-stop>${body}<button class="btn" data-act="closeOv">Tutup</button></div></div>`);
 }
 
 export function boardHtml(C, limit = 50) {
   const ranked = [...C.plist].sort((a, b) => (b.pts || 0) - (a.pts || 0)).slice(0, limit);
   const t = C.teams;
-  const lead = (t.A || 0) === (t.B || 0) ? 'Seri!' : (t.A || 0) > (t.B || 0) ? '🟢 Kubu Hijau unggul' : '🟡 Kubu Emas unggul';
-  return `<div class="teamboard"><div class="tA"><small>Kubu Hijau</small><b>${t.A || 0}</b></div><div class="vs">${lead}</div><div class="tB"><small>Kubu Emas</small><b>${t.B || 0}</b></div></div>
+  const lead = (t.A || 0) === (t.B || 0) ? 'Seri!' : (t.A || 0) > (t.B || 0) ? `🟢 ${esc(teamName('A'))} unggul` : `🟡 ${esc(teamName('B'))} unggul`;
+  return `<div class="teamboard"><div class="tA"><small>${esc(teamName('A'))}</small><b>${t.A || 0}</b></div><div class="vs">${lead}</div><div class="tB"><small>${esc(teamName('B'))}</small><b>${t.B || 0}</b></div></div>
   <ol class="board">${ranked.map((p, i) => `<li class="${i < 3 ? 'top' + (i + 1) : ''}" style="--i:${i}"><span class="rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span>${chip(p)}<b>${p.pts || 0}</b></li>`).join('')}</ol>`;
 }
 
@@ -409,7 +475,20 @@ async function onClick(e) {
     closeOv: () => { S.overlay = null; renderOverlay(); },
     toMenu: () => { H.secrets(null); H.menu(); },
     menu: () => { if (confirm('Balik ke menu utama? Game yang lagi jalan berhenti.')) { H.secrets(null); H.menu(); } },
-    split: async () => { await H.splitTeams(); toast('Kubu diacak!'); renderOverlay(); },
+    split: async () => { await H.splitTeams(arg); toast(arg === 'split' ? 'Ikhwan & akhwat dipisah!' : 'Kubu diacak campur!'); renderOverlay(); },
+    pickg: () => { S.pickG = arg; document.querySelectorAll('.gbtn').forEach((b) => b.classList.toggle('sel', b.dataset.arg === arg)); },
+    setg: async () => {
+      const p = S.players[S.me.id] || {};
+      const up = { g: arg };
+      if (S.meta.teamMode === 'split') up.team = arg === 'L' ? 'A' : 'B';
+      await db.update(room('players/' + S.me.id), up);
+      LS.set('sg_profile', { ...(LS.get('sg_profile') || {}), name: p.name || S.me.name, av: p.av || S.me.av, g: arg });
+    },
+    pause: () => db.set(room('meta/pause'), { at: db.now() }),
+    resume: resume,
+    plus15: () => { if (S.stage && S.stage.endsAt) H.patch({ endsAt: S.stage.endsAt + 15000 }); },
+    timers: () => { S.overlay = 'timers'; renderOverlay(); },
+    allTimers: () => { S.overlay = 'timers_all'; renderOverlay(); },
     swapTeam: () => { const p = S.players[arg]; db.set(room(`players/${arg}/team`), p.team === 'A' ? 'B' : 'A'); },
     kick: () => { if (confirm(`Keluarin ${S.players[arg]?.name}?`)) db.remove(room('players/' + arg)); },
   };
@@ -422,6 +501,29 @@ async function onClick(e) {
     saveMem();
   }
 }
+
+// Resume after a pause: push every running deadline forward by the paused duration.
+async function resume() {
+  const p = S.meta.pause;
+  if (!p) return;
+  const d = Math.max(0, db.now() - p.at);
+  const st = S.stage || {};
+  const up = {};
+  ['endsAt', 'startAt', 'since', 'at'].forEach((k) => { if (typeof st[k] === 'number') up[k] = st[k] + d; });
+  if (Array.isArray(st.times)) up.times = st.times.map((x) => x + d);
+  if (H.mem && typeof H.mem.boomAt === 'number') H.mem.boomAt += d;
+  if (Object.keys(up).length) await H.patch(up);
+  await db.set(room('meta/pause'), null);
+}
+
+// Timer settings inputs save on change.
+document.addEventListener('change', (e) => {
+  const i = e.target.closest && e.target.closest('[data-timer]');
+  if (!i || !S.isHost) return;
+  const v = Math.round(+i.value);
+  db.set(room('meta/timers/' + i.dataset.timer), v >= 3 ? Math.min(v, 1800) : null);
+  toast('Timer disimpan ⏱️');
+});
 
 export { ctx, room, sfx, vibe, confetti, toast, splash };
 boot();

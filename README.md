@@ -2,7 +2,7 @@
 
 # 🎮 SIGMAGENK ARENA
 
-### Party game realtime buat sirkel lu. Cukup HP, nol properti, heboh maksimal.
+### Party game realtime buat rame-rame. Cukup HP, nol properti, heboh maksimal.
 
 **[▶️ Main sekarang di sigmagenk-arena.netlify.app](https://sigmagenk-arena.netlify.app)**
 
@@ -20,10 +20,11 @@ Ga perlu beli balon, spidol, atau kartu. **Modalnya cuma badan, suara, dan HP ma
 
 - **⚡ Ngebut.** Jawaban lu nyampe ke layar semua orang dalam sekejap. Timer jalan pake jam server, jadi semua HP hitung mundur bareng.
 - **📱 Semua ikut main.** Ga ada yang cuma nonton. Bahkan pas giliran orang lain, lu tetep pegang tombol BUZZ, voting, atau nebak.
-- **🟢🟡 Perang 2 kubu.** Tiap poin individu nyumbang ke skor kubu. Klasemen bisa ditembak ke semua HP kapan aja.
+- **🟢🟡 Perang 2 kubu.** Tiap poin individu nyumbang ke skor kubu. Mau ikhwan vs akhwat atau dicampur rata, tinggal sekali klik. Klasemen bisa ditembak ke semua HP kapan aja.
+- **⏸️ Host pegang kendali.** Pause kapan aja, tambah waktu, dan atur sendiri durasi timer tiap game sebelum mulai.
 - **🔊 Rame beneran.** Efek suara, getar, confetti, dan reaksi emoji 😂🔥🤲 yang terbang di layar semua orang.
-- **🤖 Ada AI Game Master.** Gemini bantu bikin pertanyaan bedah buku dan pertanyaan lanjutan deep talk yang nyambung sama cerita lu.
-- **🕌 Hangat & beradab.** Konten dikurasi buat sirkel mahasiswa: kocak, tapi tetap sopan dan Islami.
+- **🤖 Ada AI Game Master.** Gemini bantu bikin bahan bedah buku dadakan, genre apa aja yang lu mau.
+- **🕌 Hangat & beradab.** Konten dikurasi: kocak, tapi tetap sopan dan Islami.
 
 ## 🕹️ 15 game, 4 mood
 
@@ -35,7 +36,7 @@ Ga perlu beli balon, spidol, atau kartu. **Modalnya cuma badan, suara, dan HP ma
 | 🧠 | **Satu Frekuensi** | Jawab sama kayak mayoritas. Yang sok unik sendirian = zonk. |
 | 🤥 | **Kibul** | Karang jawaban palsu buat fakta aneh. Tipu temen, tebak yang asli. |
 | 😂 | **Adu Receh** | Dua orang jawab prompt yang sama, satu ruangan vote yang paling receh. |
-| 🕵️ | **Siapa Nih?** | Semua nulis fakta rahasia soal dirinya. Seberapa kenal lu sama sirkel ini? |
+| 🕵️ | **Siapa Nih?** | Semua nulis fakta rahasia soal dirinya. Seberapa kenal lu sama temen-temen lu? |
 
 ### 🔥 Heboh Bareng: deduksi, voting, gerak
 | | Game | Serunya |
@@ -54,7 +55,7 @@ Enam minigame beruntun: **Kumpul Kode Teman → Lampu Merah-Hijau → Insting 7 
 | | Game | Serunya |
 |---|---|---|
 | 📚 | **Bedah Buku Dadakan** | Hot seat 25 menit: pitch, pertanyaan kritis, cross-fire dari forum, dan dinding insight. Ga bawa buku? AI kasih bahan dadakan. |
-| 🌙 | **Life Update Next Level** | Roda acak milih siapa yang cerita. Sirkel vote arah pertanyaan lanjutan, ditutup doa bareng 🤲 |
+| 🌙 | **Life Update Next Level** | Roda acak milih siapa yang cerita. Pertanyaan bisa diganti, dibikin sendiri, atau di-skip. Temen-temen kirim pertanyaan dari HP, ditutup doa bareng 🤲 |
 
 ## 💻 Host di laptop, main di HP
 

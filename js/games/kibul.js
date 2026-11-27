@@ -1,12 +1,15 @@
-import { esc, chip, timer, intro, wait, bar, btn, answered, progress, whoAnswered, changed, sfx, splash, vibe, confetti, endCard } from './common.js';
+import { esc, chip, timer, intro, wait, bar, btn, answered, progress, whoAnswered, changed, sfx, splash, vibe, confetti, endCard, dur } from './common.js';
 import { KIBUL } from '../data.js';
 import { fresh, norm, shuffle } from '../ui.js';
 
-const N = 4, WDUR = 45000, PDUR = 30000;
+const N = 4;
+const WDUR = (C) => dur(C, 'kibul', 'write', 45);
+const PDUR = (C) => dur(C, 'kibul', 'pick', 30);
 const isTruth = (f, t) => { const n = norm(t); return [f.a, ...(f.alt || [])].some((x) => norm(x) === n); };
 
 const g = {
   id: 'kibul', name: 'Kibul', emoji: '🤥', group: 'battle',
+  timers: [{ k: 'write', label: 'Waktu ngarang', def: 45 }, { k: 'pick', label: 'Waktu milih', def: 30 }],
   blurb: 'Karang jawaban palsu buat fakta aneh. Tipu temen, tebak yang asli!',
   steps: ['Muncul fakta aneh yang ada bagian kosongnya.', 'Semua ngarang jawaban PALSU yang meyakinkan.', 'Semua jawaban (palsu + asli) diacak. Pilih yang menurut lu ASLI.', 'Nebak bener +3. Tiap temen yang ketipu jawaban lu +2.'],
   say: 'Kibul time! Ngarang yang meyakinkan ya, jangan kebanyakan ketawa pas ngetik 🤥',
@@ -17,15 +20,15 @@ const g = {
   host(C) {
     const st = C.stage;
     if (st.phase === 'intro') return intro(g) + bar(btn('next', '▶️ Fakta 1', 'primary xl'));
-    if (st.phase === 'write') return `<div class="card center"><div class="qmeta">Fakta ${st.i + 1}/${N} • Tulis jawaban palsu</div><h2 class="qtext">${esc(st.q)}</h2>${timer(st.endsAt, WDUR)}${progress(C)}${whoAnswered(C)}</div>` + bar(btn('toPick', '⏭️ Lanjut milih'));
-    if (st.phase === 'pick') return `<div class="card center"><div class="qmeta">Fakta ${st.i + 1}/${N} • Mana yang asli?</div><h2 class="qtext">${esc(st.q)}</h2>${timer(st.endsAt, PDUR)}
+    if (st.phase === 'write') return `<div class="card center"><div class="qmeta">Fakta ${st.i + 1}/${N} • Tulis jawaban palsu</div><h2 class="qtext">${esc(st.q)}</h2>${timer(st.endsAt, WDUR(C))}${progress(C)}${whoAnswered(C)}</div>` + bar(btn('toPick', '⏭️ Lanjut milih'));
+    if (st.phase === 'pick') return `<div class="card center"><div class="qmeta">Fakta ${st.i + 1}/${N} • Mana yang asli?</div><h2 class="qtext">${esc(st.q)}</h2>${timer(st.endsAt, PDUR(C))}
       <div class="choices two">${st.opts.map((o) => `<div class="choice">${esc(o)}</div>`).join('')}</div>${progress(C)}</div>` + bar(btn('reveal', '⏭️ Buka jawaban'));
     if (st.phase === 'reveal') return revealHtml(C) + bar(st.i + 1 < N ? btn('next', `▶️ Fakta ${st.i + 2}`, 'primary xl') : btn('finish', '🏁 Raja Kibul', 'primary xl'));
     if (st.phase === 'end') return endCard(C, 'Raja Kibul', st.gains) + bar(btn('toMenu', '🏠 Menu', 'primary'));
     return '';
   },
   hostActs: {
-    next: (C) => { const i = C.stage.phase === 'intro' ? 0 : C.stage.i + 1; C.H.mem.i = i; const f = C.H.mem.facts[i]; return C.H.setStage('kibul', { phase: 'write', i, q: f.q, truthHint: [f.a, ...(f.alt || [])].map(norm), endsAt: C.now() + WDUR }); },
+    next: (C) => { const i = C.stage.phase === 'intro' ? 0 : C.stage.i + 1; C.H.mem.i = i; const f = C.H.mem.facts[i]; return C.H.setStage('kibul', { phase: 'write', i, q: f.q, truthHint: [f.a, ...(f.alt || [])].map(norm), endsAt: C.now() + WDUR(C) }); },
     toPick: (C) => toPick(C),
     reveal: (C) => reveal(C),
     finish: (C) => C.H.patch({ phase: 'end', gains: C.H.mem.gains }),
@@ -40,13 +43,13 @@ const g = {
     if (st.phase === 'intro') return intro(g);
     if (st.phase === 'write') {
       if (C.mine) return `<div class="card center"><div class="bigemoji">😏</div><p>Kibulan lu: <b>${esc(C.mine.t)}</b></p><small class="muted">Nunggu yang lain...</small></div>`;
-      return `<div class="card"><div class="qmeta">Fakta ${st.i + 1}/${N}</div><h2>${esc(st.q)}</h2>${timer(st.endsAt, WDUR, false)}
+      return `<div class="card"><div class="qmeta">Fakta ${st.i + 1}/${N}</div><h2>${esc(st.q)}</h2>${timer(st.endsAt, WDUR(C), false)}
         <input id="kfake" maxlength="40" placeholder="Jawaban palsu yang meyakinkan..." autocomplete="off" class="big-input"><button class="btn primary xl" data-act="write">Kirim Kibulan</button></div>`;
     }
     if (st.phase === 'pick') {
       const own = (C.secret || {}).own;
       if (C.mine !== undefined) return `<div class="card center"><div class="bigemoji">🤔</div><p>Lu pilih: <b>${esc(st.opts[C.mine.p])}</b></p></div>`;
-      return `<div class="card"><h2>${esc(st.q)}</h2>${timer(st.endsAt, PDUR, false)}<p class="muted">Mana yang ASLI?</p>
+      return `<div class="card"><h2>${esc(st.q)}</h2>${timer(st.endsAt, PDUR(C), false)}<p class="muted">Mana yang ASLI?</p>
         <div class="choices">${st.opts.map((o, i) => `<button class="choice" data-act="pick" data-arg="${i}" ${(own || []).includes(i) ? 'disabled style="opacity:.35"' : ''}>${esc(o)}${(own || []).includes(i) ? ' <small>(punya lu)</small>' : ''}</button>`).join('')}</div></div>`;
     }
     if (st.phase === 'reveal') {
@@ -96,7 +99,7 @@ async function toPick(C) {
   opts.forEach((o, i) => (o.by || []).forEach((pid) => { (secrets[pid] = secrets[pid] || { own: [] }).own.push(i); }));
   await C.H.secrets(secrets);
   const cap = (t) => t.trim().charAt(0).toUpperCase() + t.trim().slice(1);
-  await C.H.setStage('kibul', { phase: 'pick', i: C.stage.i, q: f.q, opts: opts.map((o) => cap(o.t)), endsAt: C.now() + PDUR });
+  await C.H.setStage('kibul', { phase: 'pick', i: C.stage.i, q: f.q, opts: opts.map((o) => cap(o.t)), endsAt: C.now() + PDUR(C) });
 }
 
 async function reveal(C) {

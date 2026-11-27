@@ -1,11 +1,13 @@
-import { esc, chip, timer, intro, wait, bar, btn, answered, progress, whoAnswered, changed, sfx, splash, vibe, confetti } from './common.js';
+import { esc, chip, timer, intro, wait, bar, btn, answered, progress, whoAnswered, changed, sfx, splash, vibe, confetti, dur } from './common.js';
 import { SIPALING } from '../data.js';
 import { fresh } from '../ui.js';
 
-const VDUR = 12000, DDUR = 15000;
+const VDUR = (C) => dur(C, 'sipaling', 'vote', 12);
+const DDUR = (C) => dur(C, 'sipaling', 'defend', 15);
 
 const g = {
   id: 'sipaling', name: 'Si Paling...', emoji: '👉', group: 'heboh',
+  timers: [{ k: 'vote', label: 'Waktu vote', def: 12 }, { k: 'defend', label: 'Waktu klarifikasi', def: 15 }],
   blurb: 'Vote rahasia di HP: siapa "si paling..."? Yang kepilih wajib klarifikasi!',
   steps: ['Muncul pertanyaan "Si paling...".', 'Semua vote 1 orang di HP (anonim, ga boleh diri sendiri).', 'Yang paling banyak dipilih maju dan klarifikasi 15 detik!', 'Yang vote sama kayak mayoritas +1 poin.'],
   say: 'Si Paling! Jujur-jujuran ya, tapi tetep sayang temen 🫶',
@@ -14,13 +16,13 @@ const g = {
   host(C) {
     const st = C.stage;
     if (st.phase === 'intro') return intro(g) + bar(btn('next', '▶️ Pertanyaan pertama', 'primary xl'));
-    if (st.phase === 'vote') return `<div class="card center"><h2 class="qtext">${esc(st.q)}</h2>${timer(st.endsAt, VDUR)}${progress(C)}${whoAnswered(C)}</div>` + bar(btn('reveal', '⏭️ Buka hasil'));
+    if (st.phase === 'vote') return `<div class="card center"><h2 class="qtext">${esc(st.q)}</h2>${timer(st.endsAt, VDUR(C))}${progress(C)}${whoAnswered(C)}</div>` + bar(btn('reveal', '⏭️ Buka hasil'));
     if (st.phase === 'reveal') return revealHtml(C) + bar(btn('next', '▶️ Pertanyaan berikutnya', 'primary xl'), btn('custom', '✍️ Pertanyaan sendiri'), btn('toMenu', '🏁 Udahan'));
     return '';
   },
   hostActs: {
-    next: (C) => C.H.setStage('sipaling', { phase: 'vote', q: fresh('sipaling', SIPALING, 1)[0], endsAt: C.now() + VDUR }),
-    custom: (C) => { const q = prompt('Si paling...?', 'Si paling '); if (q) C.H.setStage('sipaling', { phase: 'vote', q, endsAt: C.now() + VDUR }); },
+    next: (C) => C.H.setStage('sipaling', { phase: 'vote', q: fresh('sipaling', SIPALING, 1)[0], endsAt: C.now() + VDUR(C) }),
+    custom: (C) => { const q = prompt('Si paling...?', 'Si paling '); if (q) C.H.setStage('sipaling', { phase: 'vote', q, endsAt: C.now() + VDUR(C) }); },
     reveal: (C) => reveal(C),
   },
   tick(C) {
@@ -32,7 +34,7 @@ const g = {
     if (st.phase === 'intro') return intro(g);
     if (st.phase === 'vote') {
       if (C.mine) return `<div class="card center"><h2>${esc(st.q)}</h2><p>Lu pilih: ${chip(C.pl(C.mine))}</p><small class="muted">Rahasia kok 🤫</small></div>`;
-      return `<div class="card"><h2>${esc(st.q)}</h2>${timer(st.endsAt, VDUR, false)}<div class="choices two">${C.active.filter((p) => p.id !== C.me.id).map((p) => `<button class="choice" data-act="vote" data-arg="${p.id}"><span class="av">${esc(p.av)}</span>${esc(p.name)}</button>`).join('')}</div></div>`;
+      return `<div class="card"><h2>${esc(st.q)}</h2>${timer(st.endsAt, VDUR(C), false)}<div class="choices two">${C.active.filter((p) => p.id !== C.me.id).map((p) => `<button class="choice" data-act="vote" data-arg="${p.id}"><span class="av">${esc(p.av)}</span>${esc(p.name)}</button>`).join('')}</div></div>`;
     }
     if (st.phase === 'reveal') {
       const me = st.top && st.top.includes(C.me.id);
@@ -54,7 +56,7 @@ function revealHtml(C) {
   const t = st.tally || {};
   const max = Math.max(1, ...Object.values(t));
   return `<div class="card center"><h2>${esc(st.q)}</h2>
-    ${st.top && st.top.length ? `<div class="bigav">${st.top.map((id) => esc(C.pl(id).av)).join('')}</div><h2>${st.top.map((id) => esc(C.pl(id).name)).join(' & ')}</h2><p>Klarifikasi dimulai!</p>${timer(st.at + DDUR, DDUR)}` : '<p>Ga ada yang vote 😅</p>'}
+    ${st.top && st.top.length ? `<div class="bigav">${st.top.map((id) => esc(C.pl(id).av)).join('')}</div><h2>${st.top.map((id) => esc(C.pl(id).name)).join(' & ')}</h2><p>Klarifikasi dimulai!</p>${timer(st.at + DDUR(C), DDUR(C))}` : '<p>Ga ada yang vote 😅</p>'}
     <div class="bars">${Object.entries(t).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, n]) => `<div class="vbar" style="--w:${(n / max) * 100}%">${chip(C.pl(id))}<b>${n}</b></div>`).join('')}</div></div>`;
 }
 

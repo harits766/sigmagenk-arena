@@ -1,26 +1,30 @@
-import { esc, chip, timer, intro, wait, bar, btn, answered, progress, changed, sfx, splash, vibe, confetti } from './common.js';
-import { LIFE, LIFE_TOPICS, LIFE_ANGLES, LIFE_FOLLOW } from '../data.js';
+import { esc, chip, timer, intro, wait, bar, btn, changed, sfx, splash, vibe, confetti, dur } from './common.js';
+import { LIFE } from '../data.js';
 import { pick, shuffle } from '../ui.js';
-import { toast, floatEmoji } from '../fx.js';
-import { askAI } from '../ai.js';
 
-const TALK = 4 * 60000, VDUR = 20000, SPIN = 3200;
+const SPIN = 3200;
+const TALK = (C) => dur(C, 'life', 'talk', 240);
 
 const g = {
   id: 'life', name: 'Life Update Next Level', emoji: '🌙', group: 'deep',
-  blurb: 'Deep talk bergilir. Roda pilih siapa yang cerita, sirkel pilih arah pertanyaan lanjutan.',
-  steps: ['Roda acak milih siapa yang cerita + pertanyaannya.', 'Aturan anti-klise: wajib ada 1 cerita spesifik sebulan terakhir. Ga boleh cuma "alhamdulillah aman".', 'Abis cerita (maks 4 menit), semua vote arah pertanyaan lanjutan: Gali Akar Masalah, Iman & Tawakal, atau Action Plan.', 'Penutup: temen di sebelah kanannya mimpin doa khusus buat dia. Semua tap 🤲 Aamiin.'],
+  blurb: 'Deep talk bergilir. Roda pilih siapa yang cerita, yang lain boleh nanya langsung.',
+  steps: ['Roda acak milih siapa yang cerita + pertanyaannya. Pertanyaannya bisa diganti atau ditulis sendiri.', 'Aturan anti-klise: wajib ada 1 cerita spesifik sebulan terakhir. Ga boleh cuma "alhamdulillah aman".', 'Abis cerita, siapa aja boleh ngirim pertanyaan sendiri lewat HP. Host pilih mau ditampilin atau skip.', 'Penutup: temen di sebelah kanannya mimpin doa khusus buat dia. Semua tap 🤲 Aamiin.'],
+  timers: [{ k: 'talk', label: 'Waktu cerita', def: 240 }],
   say: 'Life Update Next Level. HP boleh tetap nyala, tapi hati yang full nyimak ya 🌙',
   async start(C) { C.H.mem = { done: [] }; await C.H.setStage('life', { phase: 'intro', level: 2 }); },
   host(C) {
     const st = C.stage;
     if (st.phase === 'intro') return intro(g, `<label>Level pertanyaan</label><div class="row">${[1, 2].map((l) => btn('level', LIFE[l].name, st.level === l ? 'primary' : '', l)).join('')}</div>`) + bar(btn('spin', '🎡 Putar roda', 'primary xl'));
     const sp = C.pl(st.speaker);
-    if (st.phase === 'spin') return `<div class="card center"><div class="roulette" id="roul"></div><div id="spinq" class="quote" style="opacity:0;transition:.5s">${esc(st.q)}</div></div>` + bar(btn('talk', '🎤 Mulai cerita (4 menit)', 'primary xl'), btn('spin', '🔄 Putar ulang'));
-    if (st.phase === 'talk') return `<div class="card center"><h2>${esc(sp.av)} ${esc(sp.name)} cerita</h2><div class="quote">${esc(st.q)}</div>${timer(st.endsAt, TALK)}<p class="muted">Ingat: wajib 1 cerita spesifik sebulan terakhir 🙏</p></div>` + bar(btn('follow', '⏭️ Udah, vote pertanyaan lanjutan', 'primary xl'));
-    if (st.phase === 'follow') return `<div class="card center"><h2>Arah pertanyaan buat ${esc(sp.name)}</h2>${timer(st.endsAt, VDUR)}${tallyHtml(C)}${progress(C, st.voters)}</div>` + bar(btn('deep', '🎯 Tampilkan pertanyaan', 'primary xl'));
-    if (st.phase === 'deep') return `<div class="card center"><p class="muted">${esc(LIFE_TOPICS[st.topic])} • ${esc(LIFE_ANGLES[st.angle])}${st.ai ? ' • ✨ AI' : ''}</p><h2>${esc(sp.av)} ${esc(sp.name)}</h2><div class="quote">${esc(st.fq)}</div>
-      <label>Ringkasan cerita (opsional, buat AI)</label><input id="lsum" placeholder="mis. lagi bingung pilih kerja atau S2"></div>` + bar(btn('aiFollow', '✨ Pertanyaan AI'), btn('doa', '🤲 Lanjut doa', 'primary xl'));
+    const editQ = `<div class="row"><input id="lcq" placeholder="Tulis pertanyaan sendiri..." style="flex:3">${btn('customQ', '✍️ Pakai')}${btn('rerollQ', '🔄 Ganti pertanyaan')}</div>`;
+    if (st.phase === 'spin') return `<div class="card center"><div class="roulette" id="roul"></div><div id="spinq" class="quote" style="opacity:0;transition:.5s">${esc(st.q)}</div>${editQ}</div>` + bar(btn('talk', '🎤 Mulai cerita', 'primary xl'), btn('spin', '🎡 Putar ulang orangnya'));
+    if (st.phase === 'talk') return `<div class="card center"><h2>${esc(sp.av)} ${esc(sp.name)} cerita</h2><div class="quote">${esc(st.q)}</div>${timer(st.endsAt, TALK(C))}<p class="muted">Ingat: wajib 1 cerita spesifik sebulan terakhir 🙏</p>${editQ}</div>` + bar(btn('ask', '⏭️ Udah, buka sesi tanya', 'primary xl'), btn('doa', '⏩ Skip ke doa'));
+    if (st.phase === 'ask') {
+      const qs = Object.entries(C.inputs).filter(([, v]) => v && v.q);
+      return `<div class="card center"><h2>Pertanyaan buat ${esc(sp.av)} ${esc(sp.name)}</h2>${st.shown ? `<div class="quote">${esc(st.shown.q)}<br><small class="muted">dari ${esc(C.pl(st.shown.by).name)}</small></div>` : '<p class="muted">Yang lain lagi ngetik pertanyaan di HP...</p>'}</div>
+        <div class="card"><h3>📥 Masuk (${qs.length})</h3>${qs.map(([id, v]) => `<div class="prow"><span style="flex:1">${esc(v.q)} <small class="muted">— ${esc(C.pl(id).name)}</small></span>${btn('showQ', '📣 Tampilkan', 'sm', id)}</div>`).join('') || '<p class="muted">Belum ada.</p>'}
+        <div class="row"><input id="lhq" placeholder="Atau host nanya sendiri..." style="flex:3">${btn('hostQ', '📣 Tampilkan')}</div></div>` + bar(btn('doa', '🤲 Lanjut doa', 'primary xl'));
+    }
     if (st.phase === 'doa') return doaHtml(C) + bar(btn('spin', '🎡 Orang berikutnya', 'primary xl'), btn('toMenu', '🏁 Udahan'));
     return '';
   },
@@ -28,21 +32,13 @@ const g = {
   hostActs: {
     level: (C, l) => C.H.patch({ level: +l }),
     spin: (C) => spin(C),
-    talk: (C) => C.H.setStage('life', { ...keep(C), phase: 'talk', endsAt: C.now() + TALK }),
-    follow: (C) => C.H.setStage('life', { ...keep(C), phase: 'follow', voters: C.active.filter((p) => p.id !== C.stage.speaker).map((p) => p.id), endsAt: C.now() + VDUR }),
-    deep: (C) => deep(C),
-    aiFollow: async (C) => {
-      const sum = document.getElementById('lsum')?.value.trim();
-      toast('✨ Minta pertanyaan ke AI...');
-      const r = await askAI('followup', { question: C.stage.q, summary: sum || '(tidak ada ringkasan)', topic: LIFE_TOPICS[C.stage.topic], angle: LIFE_ANGLES[C.stage.angle] });
-      if (!r) return toast('AI lagi ga bisa dipake, pake bank pertanyaan aja ya', 'bad');
-      await C.H.patch({ fq: r.items[0], ai: true });
-    },
+    customQ: (C) => { const v = document.getElementById('lcq')?.value.trim(); if (v) { document.getElementById('lcq').value = ''; return C.H.patch({ q: v }); } },
+    rerollQ: (C) => C.H.patch({ q: nextQ(C, C.stage.level || 2) }),
+    talk: (C) => C.H.setStage('life', { ...keep(C), phase: 'talk', endsAt: C.now() + TALK(C) }),
+    ask: (C) => C.H.setStage('life', { ...keep(C), phase: 'ask' }),
+    showQ: (C, id) => C.H.patch({ shown: { q: C.inputs[id].q, by: id } }),
+    hostQ: (C) => { const v = document.getElementById('lhq')?.value.trim(); if (v) { document.getElementById('lhq').value = ''; return C.H.patch({ shown: { q: v, by: '' } }); } },
     doa: (C) => C.H.setStage('life', { ...keep(C), phase: 'doa', leader: rightOf(C, C.stage.speaker) }),
-  },
-  tick(C) {
-    const st = C.stage;
-    if (st.phase === 'follow' && (C.now() > st.endsAt + 300 || st.voters.every((id) => C.inputs[id] && C.inputs[id].t && C.inputs[id].a))) C.once('deep', () => deep(C));
   },
   player(C) {
     const st = C.stage;
@@ -50,33 +46,39 @@ const g = {
     const sp = C.pl(st.speaker);
     const isSp = C.me.id === st.speaker;
     if (st.phase === 'spin') return `<div class="card center"><div class="roulette" id="roul"></div><div id="spinq" class="quote" style="opacity:0;transition:.5s">${esc(st.q)}</div></div>`;
-    if (st.phase === 'talk') return `<div class="card center">${isSp ? '<h2>🎤 Giliran lu cerita</h2>' : `<h2>${esc(sp.av)} ${esc(sp.name)} lagi cerita</h2>`}<div class="quote">${esc(st.q)}</div>${timer(st.endsAt, TALK, false)}<p class="muted">${isSp ? 'Cerita 1 kejadian spesifik sebulan terakhir ya 🙏' : 'Simak baik-baik. Abis ini lu yang milih pertanyaan lanjutannya.'}</p></div>`;
-    if (st.phase === 'follow') {
-      if (isSp) return wait('Temen-temen lagi milih pertanyaan lanjutan buat lu...', 'Tarik napas dulu 😌');
-      const m = C.mine || {};
-      return `<div class="card"><h3>Ceritanya soal apa?</h3><div class="choices">${Object.entries(LIFE_TOPICS).map(([k, v]) => `<button class="choice ${m.t === k ? 'sel' : ''}" data-act="vt" data-arg="${k}">${esc(v)}</button>`).join('')}</div>
-        <h3 style="margin-top:14px">Mau digali ke arah mana?</h3><div class="choices">${Object.entries(LIFE_ANGLES).map(([k, v]) => `<button class="choice ${m.a === k ? 'sel' : ''}" data-act="va" data-arg="${k}">${esc(v)}</button>`).join('')}</div>${timer(st.endsAt, VDUR, false)}</div>`;
+    if (st.phase === 'talk') return `<div class="card center">${isSp ? '<h2>🎤 Giliran lu cerita</h2>' : `<h2>${esc(sp.av)} ${esc(sp.name)} lagi cerita</h2>`}<div class="quote">${esc(st.q)}</div>${timer(st.endsAt, TALK(C), false)}<p class="muted">${isSp ? 'Cerita 1 kejadian spesifik sebulan terakhir ya 🙏' : 'Simak baik-baik. Abis ini lu boleh nanya langsung.'}</p></div>`;
+    if (st.phase === 'ask') {
+      const shown = st.shown ? `<div class="card center"><h3>${isSp ? 'Pertanyaan buat lu:' : `Buat ${esc(sp.name)}:`}</h3><div class="quote">${esc(st.shown.q)}</div></div>` : '';
+      if (isSp) return shown || wait('Temen-temen lagi nulis pertanyaan buat lu...', 'Tarik napas dulu 😌');
+      if (C.mine) return shown + `<div class="card center"><p>Pertanyaan lu udah masuk ✅</p><p class="muted">"${esc(C.mine.q)}"</p></div>`;
+      return shown + `<div class="card"><h3>Mau nanya apa ke ${esc(sp.name)}? (opsional)</h3><textarea id="lq" maxlength="160" placeholder="Tulis pertanyaan lu..."></textarea><button class="btn primary xl" data-act="sendQ">Kirim ke host</button></div>`;
     }
-    if (st.phase === 'deep') return `<div class="card center"><p class="muted">${esc(LIFE_ANGLES[st.angle])}</p><h2>${isSp ? 'Pertanyaan buat lu:' : `Buat ${esc(sp.name)}:`}</h2><div class="quote">${esc(st.fq)}</div></div>`;
     if (st.phase === 'doa') return doaHtml(C) + `<button class="btn gold bigbtn" data-act="aamiin">🤲 Aamiin</button>`;
     return wait();
   },
-  psig: (C) => JSON.stringify([C.stage, C.mine]),
+  psig: (C) => JSON.stringify([C.stage, C.mine, C.meta.timers]),
   playerMount(el, C) { mountSpin(el, C); },
   playerActs: {
-    vt: (C, k) => { vibe(15); C.send({ ...(C.mine || {}), t: k }); },
-    va: (C, k) => { vibe(15); C.send({ ...(C.mine || {}), a: k }); },
+    sendQ: (C) => { const v = document.getElementById('lq').value.trim(); if (v) { vibe(20); C.send({ q: v }); } },
     aamiin: (C) => { vibe(30); C.db.push(C.room('fx'), { e: '🤲', n: C.me.name, ts: C.now() }); },
   },
   fx(C, prev) {
-    if (!changed(C, prev)) return;
     const st = C.stage;
-    if (st.phase === 'deep') sfx.reveal();
+    if (prev && prev.k === st.k && st.shown && JSON.stringify(st.shown) !== JSON.stringify(prev.shown)) sfx.reveal();
+    if (!changed(C, prev)) return;
     if (st.phase === 'doa') sfx.whoosh();
   },
 };
 
-const keep = (C) => { const { speaker, q, level, topic, angle, fq } = C.stage; return { speaker, q, level, topic, angle, fq }; };
+const keep = (C) => { const { speaker, q, level } = C.stage; return { speaker, q, level }; };
+function nextQ(C, level) {
+  const mem = C.H.mem;
+  mem.used = mem.used || [];
+  const qs = LIFE[level].q.filter((q) => !mem.used.includes(q));
+  const q = pick(qs.length ? qs : LIFE[level].q);
+  mem.used.push(q);
+  return q;
+}
 function rightOf(C, id) { const ids = C.active.map((p) => p.id); const i = ids.indexOf(id); return ids[(i + 1) % ids.length]; }
 
 async function spin(C) {
@@ -87,10 +89,7 @@ async function spin(C) {
   const speaker = pick(pool).id;
   mem.done.push(speaker);
   const level = C.stage.level || 2;
-  mem.used = mem.used || [];
-  const qs = LIFE[level].q.filter((q) => !mem.used.includes(q));
-  const q = pick(qs.length ? qs : LIFE[level].q);
-  mem.used.push(q);
+  const q = nextQ(C, level);
   await C.H.setStage('life', { phase: 'spin', speaker, q, level, names: shuffle(C.active.map((p) => p.id)), at: C.now() });
 }
 
@@ -120,22 +119,6 @@ function mountSpin(el, C) {
     requestAnimationFrame(tick);
   };
   tick();
-}
-
-function tallyHtml(C) {
-  const t = {}, a = {};
-  Object.values(C.inputs).forEach((v) => { if (!v) return; if (v.t) t[v.t] = (t[v.t] || 0) + 1; if (v.a) a[v.a] = (a[v.a] || 0) + 1; });
-  const row = (obj, labels) => { const max = Math.max(1, ...Object.values(obj)); return Object.entries(labels).map(([k, l]) => `<div class="vbar" style="--w:${((obj[k] || 0) / max) * 100}%"><span>${esc(l)}</span><b>${obj[k] || 0}</b></div>`).join(''); };
-  return `<div class="bars">${row(t, LIFE_TOPICS)}</div><div class="bars">${row(a, LIFE_ANGLES)}</div>`;
-}
-
-async function deep(C) {
-  const t = {}, a = {};
-  Object.values(C.inputs).forEach((v) => { if (!v) return; if (v.t) t[v.t] = (t[v.t] || 0) + 1; if (v.a) a[v.a] = (a[v.a] || 0) + 1; });
-  const top = (o, keys) => { const s = Object.entries(o).sort((x, y) => y[1] - x[1]); return s.length ? s[0][0] : pick(keys); };
-  const topic = top(t, Object.keys(LIFE_TOPICS));
-  const angle = top(a, Object.keys(LIFE_ANGLES));
-  await C.H.setStage('life', { ...keep(C), phase: 'deep', topic, angle, fq: LIFE_FOLLOW[topic][angle] });
 }
 
 function doaHtml(C) {

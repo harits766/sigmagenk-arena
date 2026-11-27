@@ -1,6 +1,6 @@
 import { esc, chip, confetti, sfx } from './common.js';
 import { GM_LINES } from '../data.js';
-import { pick } from '../ui.js';
+import { pick, teamName } from '../ui.js';
 
 export const GROUPS = [
   { id: 'battle', e: '⚔️', name: 'Battle 2 Kubu', sub: 'Semua main lewat HP • cocok di dalam rumah', games: ['kuis', 'tabu', 'frekuensi', 'kibul', 'receh', 'siapa'] },
@@ -58,7 +58,7 @@ export function makeMenu(GAMES) {
       return `<div class="card center lobby">
         <div class="bigav">${esc(C.me.av)}</div>
         <h2>Halo, ${esc(C.me.name)}!</h2>
-        <p class="teamtag t${C.me.team}">Lu di ${C.me.team === 'A' ? '🟢 Kubu Hijau' : '🟡 Kubu Emas'}</p>
+        <p class="teamtag t${C.me.team}">Lu di ${C.me.team === 'A' ? '🟢' : '🟡'} ${esc(teamName(C.me.team))}</p>
         <p class="muted">Host lagi milih game. Ramein dulu pake tombol reaksi di bawah 👇</p>
       </div>
       <div class="card"><h3>Yang udah masuk (${C.active.length})</h3><div class="chips">${C.active.map((p) => chip(p)).join('')}</div></div>

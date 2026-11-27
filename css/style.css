@@ -255,3 +255,16 @@ input[type=range]::-moz-range-thumb { width: 34px; height: 34px; border-radius: 
 .peek:hover .blur, .blur:hover { filter: none; }
 details.secret summary { cursor: pointer; list-style: none; }
 details.secret summary::-webkit-details-marker { display: none; }
+
+/* ikhwan/akhwat picker, pause, timer settings */
+.gpick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 4px; }
+.gbtn { padding: 12px 6px; border-radius: 14px; background: var(--bg2); border: 2px solid transparent; color: var(--tx); font: inherit; font-weight: 700; font-size: 1.05rem; }
+.gbtn.sel { border-color: var(--em); background: #134e3a; }
+.pauseov { z-index: 80; }
+.pauseov .ovbox { max-width: 420px; }
+.tset { text-align: left; margin: 10px 0; padding: 10px 12px; background: var(--bg2); border-radius: 14px; }
+.tset h3 { margin: 0 0 6px; font-size: 1rem; }
+.trow { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: .95rem; }
+.trow span { flex: 1; }
+.trow input { width: 84px; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--tx); font: inherit; text-align: right; }
+.row.center { justify-content: center; margin-top: 10px; }

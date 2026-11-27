@@ -1,25 +1,28 @@
-import { esc, chip, timer, intro, wait, bar, btn, changed, sfx, splash, vibe, confetti } from './common.js';
+import { esc, chip, timer, intro, wait, bar, btn, changed, sfx, splash, vibe, confetti, dur } from './common.js';
 import { CARDS } from '../data.js';
 import { pick, teamName } from '../ui.js';
 
+const cs = (C, c) => dur(C, 'kartu', c.id, c.secs) / 1000;
+
 const g = {
   id: 'kartu', name: 'Kartu Gerak', emoji: '🃏', group: 'heboh',
+  timers: CARDS.map((c) => ({ k: c.id, label: c.t, def: c.secs })),
   blurb: 'Game fisik singkat: ular naga, tahan tawa, DOR!, charades. HP jadi timer & wasit.',
   steps: ['Host pilih kartu permainan.', 'HP nunjukin aturan, wakil kubu, dan timer.', 'Host kasih poin ke kubu yang menang.'],
   say: 'Waktunya gerak dikit biar ga ngantuk! 🏃',
   async start(C) { await C.H.setStage('kartu', { phase: 'pick' }); },
   host(C) {
     const st = C.stage;
-    if (st.phase === 'pick') return `<div class="tiles">${CARDS.map((c) => `<button class="tile" data-act="card" data-arg="${c.id}"><span class="te">${c.e}</span><b>${esc(c.t)}</b><small>${c.secs} detik</small>${c.field ? '<em class="tag">🕌 lapangan</em>' : ''}</button>`).join('')}</div>` + bar(btn('toMenu', '🏠 Menu'));
+    if (st.phase === 'pick') return `<div class="tiles">${CARDS.map((c) => `<button class="tile" data-act="card" data-arg="${c.id}"><span class="te">${c.e}</span><b>${esc(c.t)}</b><small>${cs(C, c)} detik</small>${c.field ? '<em class="tag">🕌 lapangan</em>' : ''}</button>`).join('')}</div>` + bar(btn('toMenu', '🏠 Menu'));
     const c = CARDS.find((x) => x.id === st.card);
     return cardHtml(C, c, true) + bar(
-      st.endsAt ? '' : btn('go', `⏱️ Mulai ${c.secs} detik`, 'primary xl'),
+      st.endsAt ? '' : btn('go', `⏱️ Mulai ${cs(C, c)} detik`, 'primary xl'),
       btn('reps', '🎲 Acak wakil'), c.secret ? btn('phrase', '🔄 Frasa baru') : '', c.prompt ? btn('prompt', '🔄 Kata baru') : '',
-      btn('win', '🟢 Hijau menang (+3)', '', 'A'), btn('win', '🟡 Emas menang (+3)', '', 'B'), btn('back', '🃏 Kartu lain'));
+      btn('win', `🟢 ${teamName('A')} menang (+3)`, '', 'A'), btn('win', `🟡 ${teamName('B')} menang (+3)`, '', 'B'), btn('back', '🃏 Kartu lain'));
   },
   hostActs: {
     card: async (C, id) => { const c = CARDS.find((x) => x.id === id); const r = reps(C); await phrase(C, id, r); await C.H.setStage('kartu', { phase: 'card', card: id, ...r, prompt: c.prompt ? pick(c.prompt) : null }); },
-    go: (C) => { const c = CARDS.find((x) => x.id === C.stage.card); return C.H.patch({ endsAt: C.now() + c.secs * 1000, total: c.secs * 1000 }); },
+    go: (C) => { const c = CARDS.find((x) => x.id === C.stage.card); return C.H.patch({ endsAt: C.now() + cs(C, c) * 1000, total: cs(C, c) * 1000 }); },
     reps: async (C) => { const r = reps(C); await phrase(C, C.stage.card, r); await C.H.patch({ ...r, endsAt: null }); },
     phrase: (C) => phrase(C, C.stage.card, C.stage),
     prompt: (C) => C.H.patch({ prompt: pick(CARDS.find((x) => x.id === C.stage.card).prompt) }),
