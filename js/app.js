@@ -30,7 +30,8 @@ const room = (p = '') => `rooms/${S.code}${p ? '/' + p : ''}`;
 function ctx() {
   const players = S.players || {};
   const plist = Object.entries(players).map(([id, p]) => ({ id, ...p })).sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
-  const active = plist.filter((p) => p.on !== false);
+  // Everyone who joined counts as playing until the host kicks them, even if their phone drops offline.
+  const active = plist;
   const stage = S.stage || { g: 'menu', k: 'menu' };
   const meId = S.me && S.me.id;
   return {
@@ -77,28 +78,18 @@ export const H = {
     S.teams = { ...S.teams, [t]: v };
     await db.set(room('teams/' + t), v);
   },
-  // mode 'mix': shuffle, ikhwan & akhwat spread evenly over both kubu. mode 'split': ikhwan vs akhwat.
-  async splitTeams(mode = 'mix') {
-    const ids = shuffle(Object.keys(S.players).filter((id) => S.players[id].on !== false));
-    const up = {};
-    if (mode === 'split') {
-      const cnt = { A: 0, B: 0 };
-      ids.forEach((id) => { const g = S.players[id].g; if (g === 'L') cnt.A++; if (g === 'P') cnt.B++; });
-      ids.forEach((id) => {
-        const g = S.players[id].g;
-        let t = g === 'L' ? 'A' : g === 'P' ? 'B' : null;
-        if (!t) { t = cnt.A <= cnt.B ? 'A' : 'B'; cnt[t]++; }
-        up[`players/${id}/team`] = t;
-      });
-      up['meta/teamMode'] = 'split';
-      up['meta/teamNames'] = { A: 'Kubu Ikhwan', B: 'Kubu Akhwat' };
-    } else {
-      const order = [...ids.filter((id) => S.players[id].g === 'L'), ...ids.filter((id) => S.players[id].g === 'P'), ...ids.filter((id) => !S.players[id].g)];
-      order.forEach((id, i) => { up[`players/${id}/team`] = i % 2 ? 'B' : 'A'; });
-      up['meta/teamMode'] = 'mix';
-      up['meta/teamNames'] = null;
-    }
+  async splitTeams() {
+    const ids = shuffle(Object.keys(S.players));
+    const up = { 'meta/teamMode': null, 'meta/teamNames': null };
+    ids.forEach((id, i) => { up[`players/${id}/team`] = i % 2 ? 'B' : 'A'; });
     await db.update(room(), up);
+  },
+  // End the room: remove every player, answer and score so the next session starts clean.
+  async finishRoom() {
+    await db.update(room(), { players: null, in: null, secret: null, hostdata: null, fx: null, teams: { A: 0, B: 0 }, 'meta/pause': null, 'meta/teamMode': null, 'meta/teamNames': null });
+    H.mem = {};
+    S.players = {}; S.teams = { A: 0, B: 0 };
+    await H.setStage('menu');
   },
   menu: () => { H.say(pick(GM_LINES.menu)); return H.setStage('menu'); },
   mem: {}, // host-only memory for the current game (answers, roles)
@@ -148,8 +139,6 @@ function renderJoin(code = '', err = '') {
       <input id="jcode" maxlength="5" autocomplete="off" placeholder="mis. KURMA" value="${esc(code)}" class="big-input caps">
       <label>Nama Panggilan</label>
       <input id="jname" maxlength="14" autocomplete="off" placeholder="Nama lu" value="${esc(last.name || '')}" class="big-input">
-      <label>Lu ikhwan atau akhwat?</label>
-      <div class="gpick">${genderBtns(last.g, 'pickg')}</div>
       <label>Pilih Avatar</label>
       <div class="avgrid" id="avgrid">${AVATARS.map((a) => `<button class="avbtn ${a === av ? 'sel' : ''}" data-act="pickav" data-arg="${a}">${a}</button>`).join('')}</div>
       ${err ? `<p class="err">${esc(err)}</p>` : ''}
@@ -158,17 +147,11 @@ function renderJoin(code = '', err = '') {
     <a class="hostlink" href="?host=1${MOCK ? '&mock=1' : ''}">💻 Jadi Host (laptop)</a>
   </div>`;
   S.pickAv = av;
-  S.pickG = last.g || null;
 }
-const genderBtns = (cur, act) => `<button class="gbtn ${cur === 'L' ? 'sel' : ''}" data-act="${act}" data-arg="L">🧔 Ikhwan</button><button class="gbtn ${cur === 'P' ? 'sel' : ''}" data-act="${act}" data-arg="P">🧕 Akhwat</button>`;
-
-// Which kubu a new player lands in: separate mode puts ikhwan in A and akhwat in B,
-// otherwise the kubu with fewer people of the same gender (then fewer people overall).
-function teamFor(meta, players, g) {
-  if (meta.teamMode === 'split' && g) return g === 'L' ? 'A' : 'B';
-  const list = Object.values(players).filter((p) => p.on !== false);
-  const n = (t, same) => list.filter((p) => p.team === t && (!same || p.g === g)).length;
-  if (g && n('A', true) !== n('B', true)) return n('A', true) < n('B', true) ? 'A' : 'B';
+// New players go to the smaller kubu.
+function teamFor(players) {
+  const list = Object.values(players);
+  const n = (t) => list.filter((p) => p.team === t).length;
   return n('A') <= n('B') ? 'A' : 'B';
 }
 
@@ -239,18 +222,16 @@ async function joinRoom() {
   const name = document.getElementById('jname').value.trim();
   if (!code) return renderJoin(code, 'Isi kode room dulu');
   if (!name) return renderJoin(code, 'Isi nama dulu');
-  if (!S.pickG) return renderJoin(code, 'Pilih ikhwan atau akhwat dulu');
   const meta = await db.get(`rooms/${code}/meta`);
   if (!meta) return renderJoin(code, `Room ${code} ga ada. Cek lagi kodenya.`);
   const players = (await db.get(`rooms/${code}/players`)) || {};
   const same = Object.entries(players).find(([, p]) => p.name.toLowerCase() === name.toLowerCase());
   const id = same ? same[0] : 'p' + rid(7);
-  const g = S.pickG;
   const me = { id, name, av: S.pickAv };
-  const rec = same ? { ...same[1], av: S.pickAv, g, on: true } : { name, av: S.pickAv, g, pts: 0, team: teamFor(meta, players, g), joinedAt: db.now(), on: true };
+  const rec = same ? { ...same[1], av: S.pickAv, on: true } : { name, av: S.pickAv, pts: 0, team: teamFor(players), joinedAt: db.now(), on: true };
   await db.set(`rooms/${code}/players/${id}`, rec);
   LS.set('sg_me_' + code, me);
-  LS.set('sg_profile', { name, av: S.pickAv, g });
+  LS.set('sg_profile', { name, av: S.pickAv });
   history.replaceState(null, '', `?r=${code}${MOCK ? '&mock=1' : ''}${NS ? '&as=' + NS : ''}`);
   enterPlayer(code, me);
 }
@@ -328,7 +309,7 @@ function renderTop() {
   const t = S.teams || {};
   const scores = `<div class="tscore"><span class="tA">🟢 ${t.A || 0}</span><span class="tB">🟡 ${t.B || 0}</span></div>`;
   if (S.isHost) {
-    const n = Object.values(S.players).filter((p) => p.on !== false).length;
+    const n = Object.keys(S.players).length;
     el.innerHTML = `
       <div class="roomcode" data-act="showJoin">ROOM <b>${S.code}</b></div>
       ${scores}
@@ -375,17 +356,17 @@ function doRender() {
     if (S.isHost) {
       const tbtn = g.timers && ['intro', 'pick', 'setup'].includes(C.stage.phase) && !(g.id === 'gso' && C.stage.phase === 'pick')
         ? `<div class="row center"><button class="btn sm" data-act="timers">⏱️ Atur timer ${esc(g.name)} sebelum mulai</button></div>` : '';
+      calm(el, C);
       renderKeep(el, `<div class="game g-${g.id}">${g.host(C)}${tbtn}</div>`);
       g.hostMount && g.hostMount(el, C);
     } else {
       // Player screens re-render only when what they show actually changes (keeps sliders/typing smooth).
-      const needG = C.me && !C.me.g;
-      const sig = (needG ? 'G|' : '') + JSON.stringify([C.stage.endsAt, C.stage.times, C.stage.at]) + (g.psig ? g.psig(C) : JSON.stringify([C.stage, C.secret, C.me && C.me.team, C.mine === undefined, C.plist.length]));
+      const sig = JSON.stringify([C.stage.endsAt, C.stage.times, C.stage.at]) + (g.psig ? g.psig(C) : JSON.stringify([C.stage, C.secret, C.me && C.me.team, C.mine === undefined, C.plist.length]));
       if (sig !== S.lastPsig || el.dataset.g !== C.stage.k) {
         S.lastPsig = sig;
         el.dataset.g = C.stage.k;
-        const ask = needG ? `<div class="card center warn"><p>Lu ikhwan atau akhwat? (buat bagi kubu)</p><div class="gpick">${genderBtns(null, 'setg')}</div></div>` : '';
-        renderKeep(el, `${ask}<div class="game g-${g.id}">${g.player(C)}</div>`);
+        calm(el, C);
+        renderKeep(el, `<div class="game g-${g.id}">${g.player(C)}</div>`);
         g.playerMount && g.playerMount(el, C);
       } else if (g.pupdate) g.pupdate(el, C);
     }
@@ -394,6 +375,14 @@ function doRender() {
     el.innerHTML = `<div class="card"><p class="err">Error: ${esc(e.message)}</p></div>`;
   }
   renderOverlay();
+}
+
+// Entrance animations only play when the screen actually changes (new stage or phase),
+// not on every vote/answer update, so the host screen doesn't flicker.
+function calm(el, C) {
+  const k = C.stage.k + '|' + C.stage.phase;
+  el.classList.toggle('calm', el.dataset.seen === k);
+  el.dataset.seen = k;
 }
 
 // ---------------- host loop (auto-advance when timers end / everyone answered) ----------------
@@ -430,7 +419,9 @@ function renderOverlay() {
       ${S.isHost ? '<button class="btn primary xl" data-act="resume">▶️ Lanjut</button>' : ''}</div></div>`;
     return;
   }
-  if (!S.overlay) { el.innerHTML = ''; return; }
+  if (!S.overlay) { el.innerHTML = ''; el.dataset.seen = ''; return; }
+  el.classList.toggle('calm', el.dataset.seen === S.overlay);
+  el.dataset.seen = S.overlay;
   let body = '';
   if (S.overlay === 'join') {
     const url = location.origin + location.pathname + `?r=${S.code}${MOCK ? '&mock=1' : ''}`;
@@ -439,13 +430,12 @@ function renderOverlay() {
   } else if (S.overlay === 'board') {
     body = `<h2>🏆 Klasemen</h2>${boardHtml(C)}`;
   } else if (S.overlay === 'drawer') {
-    const gc = (t, g) => C.active.filter((p) => p.team === t && p.g === g).length;
-    const mode = S.meta.teamMode === 'split' ? 'Pisah ikhwan vs akhwat' : 'Campur';
-    body = `<h2>👥 Pemain (${C.active.length} online)</h2>
-      <p class="muted">Mode kubu: <b>${mode}</b> • 🟢 ${esc(teamName('A'))}: 🧔${gc('A', 'L')} 🧕${gc('A', 'P')} • 🟡 ${esc(teamName('B'))}: 🧔${gc('B', 'L')} 🧕${gc('B', 'P')}</p>
-      <div class="row"><button class="btn" data-act="split" data-arg="mix">🔀 Acak campur (ikhwan & akhwat rata)</button><button class="btn" data-act="split" data-arg="split">🧔 vs 🧕 Pisah ikhwan & akhwat</button></div>
+    const on = C.plist.filter((p) => p.on !== false).length;
+    body = `<h2>👥 Pemain (${C.plist.length})</h2>
+      <p class="muted">${on} lagi buka app. Yang HP-nya mati tetep dihitung main sampai lu keluarin (✕).</p>
+      <div class="row"><button class="btn" data-act="split">🔀 Acak Kubu</button><button class="btn danger" data-act="finishRoom">🏁 Selesaikan room (hapus semua peserta & skor)</button></div>
       <div class="plist">${C.plist.map((p) => `
-        <div class="prow ${p.on === false ? 'off' : ''}">${chip(p)}<small>${p.g === 'L' ? '🧔' : p.g === 'P' ? '🧕' : '❔'} ${p.pts || 0} poin</small>
+        <div class="prow ${p.on === false ? 'off' : ''}">${chip(p)}<small>${p.on === false ? '📴 ' : ''}${p.pts || 0} poin</small>
           <button class="btn sm" data-act="swapTeam" data-arg="${p.id}">⇄ Kubu</button>
           <button class="btn sm danger" data-act="kick" data-arg="${p.id}">✕</button></div>`).join('')}</div>`;
   } else if (S.overlay === 'timers' || S.overlay === 'timers_all') {
@@ -497,14 +487,10 @@ async function onClick(e) {
     closeOv: () => { S.overlay = null; renderOverlay(); },
     toMenu: () => { H.secrets(null); H.menu(); },
     menu: () => { if (confirm('Balik ke menu utama? Game yang lagi jalan berhenti.')) { H.secrets(null); H.menu(); } },
-    split: async () => { await H.splitTeams(arg); toast(arg === 'split' ? 'Ikhwan & akhwat dipisah!' : 'Kubu diacak campur!'); renderOverlay(); },
-    pickg: () => { S.pickG = arg; document.querySelectorAll('.gbtn').forEach((b) => b.classList.toggle('sel', b.dataset.arg === arg)); },
-    setg: async () => {
-      const p = S.players[S.me.id] || {};
-      const up = { g: arg };
-      if (S.meta.teamMode === 'split') up.team = arg === 'L' ? 'A' : 'B';
-      await db.update(room('players/' + S.me.id), up);
-      LS.set('sg_profile', { ...(LS.get('sg_profile') || {}), name: p.name || S.me.name, av: p.av || S.me.av, g: arg });
+    split: async () => { await H.splitTeams(); toast('Kubu diacak!'); renderOverlay(); },
+    finishRoom: async () => {
+      if (!confirm('Selesaikan room? Semua peserta, jawaban, dan skor bakal dihapus. Ga bisa dibalikin.')) return;
+      await H.finishRoom(); S.overlay = null; toast('Room bersih, siap dipakai lagi 🧹'); renderTop(); renderMain();
     },
     pause: () => db.set(room('meta/pause'), { at: db.now() }),
     resume: resume,

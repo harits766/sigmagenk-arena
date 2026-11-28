@@ -10,7 +10,7 @@ const g = {
   id: 'tabu', name: 'Tabu Kilat', emoji: '🚫', group: 'battle',
   timers: [{ k: 'turn', label: 'Waktu per giliran', def: 60 }],
   blurb: 'Jelasin kata tanpa nyebut kata terlarang. Kubu lawan pegang tombol BUZZ!',
-  steps: ['1 orang dari kubu yang main jadi penjelas, kata rahasia muncul di HP-nya.', 'Kubunya teriak nebak. Bener = tap ✅, susah = ⏭️ skip.', 'Kubu lawan liat kata terlarangnya. Kalau penjelas keceplosan, langsung pencet 🚨 BUZZ!', '60 detik per giliran, gantian kubu.'],
+  steps: ['1 orang dari kubu yang main jadi penjelas, kata rahasia muncul di HP-nya.', 'Kubunya teriak nebak. Bener = tap ✅, susah = ⏭️ skip.', 'Kubu lawan liat kata terlarangnya. Cuma 1 orang dari kubu lawan yang pegang tombol 🚨 BUZZ, yang lain teriakin dia kalau penjelas keceplosan!', '60 detik per giliran, gantian kubu.'],
   say: 'Tabu Kilat! Yang jelasin hati-hati mulutnya, kubu lawan udah siap mencet BUZZ 🚨',
   min: 4,
   async start(C) {
@@ -21,12 +21,13 @@ const g = {
     const st = C.stage;
     if (st.phase === 'intro') return intro(g) + bar(btn('nextTurn', `▶️ Giliran pertama: ${teamName('A')}`, 'primary xl'));
     const ex = C.pl(st.explainer);
-    const head = `<div class="card center"><p class="teamtag t${st.team}">Giliran ${teamName(st.team)}</p><h2>${ex.av} ${esc(ex.name)} jelasin</h2>`;
-    if (st.phase === 'ready') return head + `<p class="muted">Nunggu ${esc(ex.name)} pencet MULAI di HP-nya...</p></div>` + bar(btn('forceGo', '▶️ Mulai dari sini'), btn('reroll', '🔄 Ganti penjelas'));
+    const bz = C.pl(st.buzzer);
+    const head = `<div class="card center"><p class="teamtag t${st.team}">Giliran ${teamName(st.team)}</p><h2>${ex.av} ${esc(ex.name)} jelasin</h2>${st.buzzer ? `<p class="muted">🚨 Pemegang BUZZ: ${esc(bz.av)} ${esc(bz.name)}</p>` : ''}`;
+    if (st.phase === 'ready') return head + `<p class="muted">Nunggu ${esc(ex.name)} pencet MULAI di HP-nya...</p></div>` + bar(btn('forceGo', '▶️ Mulai dari sini'), btn('reroll', '🔄 Ganti penjelas'), btn('rebuzz', '🚨 Ganti pemegang BUZZ'));
     if (st.phase === 'turn') {
       const c = card(st);
       return head + timer(st.endsAt, DUR(C)) + `<div class="secret peek"><small>Kata (hover buat intip)</small><div class="word blur">${esc(c.w)}</div></div>
-        <div class="bignum">✅ ${st.got || 0} <small style="font-size:1.2rem">🚨 ${st.buzz || 0} ⏭️ ${st.skip || 0}</small></div></div>`;
+        <div class="bignum">✅ ${st.got || 0} <small style="font-size:1.2rem">🚨 ${st.buzz || 0} ⏭️ ${st.skip || 0}</small></div></div>` + bar(btn('rebuzz', '🚨 Ganti pemegang BUZZ'));
     }
     if (st.phase === 'turnEnd') {
       return head + `<div class="bignum">+${st.pts}</div><p>buat ${teamName(st.team)}</p>${logHtml(st)}</div>` +
@@ -38,6 +39,7 @@ const g = {
     nextTurn: (C) => nextTurn(C),
     reroll: (C) => nextTurn(C, C.stage.team),
     forceGo: (C) => go(C),
+    rebuzz: (C) => C.H.patch({ buzzer: pickBuzzer(C, C.stage.team === 'A' ? 'B' : 'A', C.stage.buzzer) }),
   },
   tick(C) {
     const st = C.stage;
@@ -59,8 +61,10 @@ const g = {
       if (mine) return timer(st.endsAt, DUR(C)) + `<div class="secret"><small>Jelasin kata ini:</small><div class="word">${esc(c.w)}</div><small>JANGAN sebut:</small><div class="ban">${c.ban.map((b) => `<span>${esc(b)}</span>`).join('')}</div></div>
         ${score}<div class="choices two"><button class="btn primary bigbtn" data-act="ok" data-arg="${st.ci}">✅ BENER</button><button class="btn bigbtn" data-act="skip" data-arg="${st.ci}">⏭️ SKIP</button></div>`;
       if (myTeam) return timer(st.endsAt, DUR(C)) + `<div class="card center"><div class="bigemoji">🗣️</div><h2>TEBAK!</h2><p>${ex.av} ${esc(ex.name)} lagi jelasin. Teriak jawabannya!</p></div>${score}`;
+      const isBz = C.me.id === st.buzzer;
+      const bz = C.pl(st.buzzer);
       return timer(st.endsAt, DUR(C)) + `<div class="secret"><small>${esc(ex.name)} lagi jelasin:</small><div class="word">${esc(c.w)}</div><small>Kalau dia nyebut salah satu ini, BUZZ!</small><div class="ban">${c.ban.map((b) => `<span>${esc(b)}</span>`).join('')}</div></div>
-        ${score}<button class="btn danger bigbtn" data-act="buzz" data-arg="${st.ci}">🚨 BUZZ!</button>`;
+        ${score}${isBz ? `<button class="btn danger bigbtn" data-act="buzz" data-arg="${st.ci}">🚨 BUZZ!</button><p class="muted center">Lu satu-satunya pemegang BUZZ di kubu lu.</p>` : `<p class="center muted">🚨 Tombol BUZZ dipegang <b>${esc(bz.av)} ${esc(bz.name)}</b>. Teriakin dia kalau penjelas keceplosan!</p>`}`;
     }
     if (st.phase === 'turnEnd') return `<div class="card center"><p class="teamtag t${st.team}">${teamName(st.team)}</p><div class="bignum">+${st.pts}</div>${logHtml(st)}</div>`;
     return wait();
@@ -102,7 +106,16 @@ async function nextTurn(C, sameTeam) {
   if (!members.length) return alert('Kubu itu kosong. Acak kubu dulu.');
   const explainer = members[mem.rot[team]++ % members.length].id;
   const deck = shuffle(TABU.map((_, i) => i));
-  await C.H.setStage('tabu', { phase: 'ready', team, explainer, deck, ci: 0, got: 0, buzz: 0, skip: 0, log: [] });
+  const buzzer = pickBuzzer(C, team === 'A' ? 'B' : 'A');
+  await C.H.setStage('tabu', { phase: 'ready', team, explainer, buzzer, deck, ci: 0, got: 0, buzz: 0, skip: 0, log: [] });
+}
+
+// One BUZZ holder from the other kubu (prefers someone with the app open), so a crowd of taps can't skip several cards.
+function pickBuzzer(C, team, not) {
+  const all = C.byTeam(team);
+  const on = all.filter((p) => p.on !== false && p.id !== not);
+  const pool = on.length ? on : all.filter((p) => p.id !== not);
+  return (pool.length ? pool[Math.floor(Math.random() * pool.length)] : all[0] || {}).id || null;
 }
 
 function go(C) {
@@ -118,6 +131,9 @@ function act(C, n, r) {
   vibe(r === 'buzz' ? 60 : 20);
   return C.db.tx(C.room('stage'), (st) => {
     if (!st || st.phase !== 'turn' || st.ci !== n) return st;
+    if (r === 'buzz' && (st.buzzer && st.buzzer !== C.me.id)) return st;
+    if (r === 'buzz' && st.lastAt && C.now() - st.lastAt < 1500) return st;
+    st.lastAt = C.now();
     const w = TABU[st.deck[st.ci % st.deck.length]].w;
     st.log = [...(st.log || []), { w, r, by: C.me.id }];
     st.ci++;

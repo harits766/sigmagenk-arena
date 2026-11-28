@@ -20,7 +20,7 @@ Ga perlu beli balon, spidol, atau kartu. **Modalnya cuma badan, suara, dan HP ma
 
 - **⚡ Ngebut.** Jawaban lu nyampe ke layar semua orang dalam sekejap. Timer jalan pake jam server, jadi semua HP hitung mundur bareng.
 - **📱 Semua ikut main.** Ga ada yang cuma nonton. Bahkan pas giliran orang lain, lu tetep pegang tombol BUZZ, voting, atau nebak.
-- **🟢🟡 Perang 2 kubu.** Tiap poin individu nyumbang ke skor kubu. Mau ikhwan vs akhwat atau dicampur rata, tinggal sekali klik. Klasemen bisa ditembak ke semua HP kapan aja.
+- **🟢🟡 Perang 2 kubu.** Tiap poin individu nyumbang ke skor kubu. Kubu diacak sekali klik, yang telat join otomatis masuk kubu yang lebih sepi. Klasemen bisa ditembak ke semua HP kapan aja.
 - **⏸️ Host pegang kendali.** Pause kapan aja, tambah waktu, dan atur sendiri durasi timer tiap game sebelum mulai.
 - **🔊 Rame beneran.** Efek suara, getar, confetti, dan reaksi emoji 😂🔥🤲 yang terbang di layar semua orang.
 - **🤖 Ada AI Game Master.** Gemini bantu bikin bahan bedah buku dadakan, genre apa aja yang lu mau.

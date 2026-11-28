@@ -268,3 +268,6 @@ details.secret summary::-webkit-details-marker { display: none; }
 .trow span { flex: 1; }
 .trow input { width: 84px; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--tx); font: inherit; text-align: right; }
 .row.center { justify-content: center; margin-top: 10px; }
+
+/* No replayed entrance animations on live updates (stops the host screen from flickering). */
+.calm .card, .calm .game, .calm .board li, .calm .wall .note, .calm .ovbox { animation: none !important; }
